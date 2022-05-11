@@ -426,6 +426,9 @@ try:
 
                 # Convert variables to lower case, and perform other type conversions as necessary
                 test_data = prepLogs.handle_case(test_data)
+
+                # Clean the text field that holds some of the commission data
+                test_data = prepLogs.clean_comm(test_data)
                 
                 # Test to see if there are duplicated addresses across unique Catylist IDs
                 prepLogs.check_duplicate_catylist(test_data)
