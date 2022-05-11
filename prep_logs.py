@@ -361,6 +361,8 @@ class PrepareLogs:
         test_data['comm_cleaned'] = np.where((test_data['commission_description'].str.contains('month') == True) & (test_data['comm_cleaned'] <= 1.5), np.nan, test_data['comm_cleaned'])
         test_data['comm_cleaned'] = np.where((test_data['comm_cleaned'] < 0.06), test_data['comm_cleaned'] * 100, test_data['comm_cleaned'])
         
+        test_data['commission_amount_percentage'] = np.where((test_data['commission_amount_percentage'].isnull() == False), test_data['commission_amount_percentage'], test_data['comm_cleaned'])
+
         return test_data
         
     def handle_case(self, test_data):
