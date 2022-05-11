@@ -1713,7 +1713,6 @@ class PrepareLogs:
                 temp2['value'] = temp2['commission_amount_percentage']
                 temp2['column'] = 'comm1'
                 temp2['status'] = 'dropped'
-                temp2['status'] = 'dropped'
                 self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status', 'status']], ignore_index=True)
             
             temp1['commission_amount_percentage'] = np.where((temp1['commission_amount_percentage'] < temp1['comm1' + '_l_range']) | (temp1['commission_amount_percentage'] > temp1['comm1' + '_h_range']), np.nan, temp1['commission_amount_percentage'])
