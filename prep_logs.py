@@ -325,45 +325,6 @@ class PrepareLogs:
         
         self.met_state_dict = met_state_dict
         
-    def clean_comm(self, test_data):
-        
-        test_data['commission_description'] = test_data['commission_description'].str.strip()
-        test_data['commission_description'] = test_data['commission_description'].str.lower()
-        test_data['commission_description'] = test_data['commission_description'].str.replace('\*', '')
-        test_data['comm_cleaned'] = ''
-
-        test_data['temp'] = test_data['commission_description'].str.split(' ').str[0].str.strip()
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('0.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-
-        test_data['temp'] = test_data['commission_description'].str.split('/').str[0].str.strip()
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('0.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-
-        test_data['temp'] = test_data['commission_description'].str.split('%').str[0].str.strip()
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('0.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
-        test_data['temp1'] = test_data['temp'].str.split('/').str[0].str.strip()
-        test_data['comm_cleaned'] = np.where((test_data['temp1'].str.isdigit()), test_data['temp1'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp1'].str.replace('.', '').str.isdigit()), test_data['temp1'], test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['temp1'].str.replace('0.', '').str.isdigit()), test_data['temp1'], test_data['comm_cleaned'])
-
-        test_data['comm_cleaned'] = np.where((test_data['comm_cleaned'] == ''), np.nan, test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = test_data['comm_cleaned'].astype(float)
-        test_data['comm_cleaned'] = np.where((test_data['comm_cleaned'] > 10), np.nan, test_data['comm_cleaned'])
-
-        test_data['comm_cleaned'] = np.where(((test_data['commission_description'].str.contains('sf') == True) | (test_data['commission_description'].str.contains('ft') == True)) & (test_data['comm_cleaned'] <= 1.5), np.nan, test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['commission_description'].str.split(' ').str[0] == '1/2') & (test_data['comm_cleaned'] <= 1.5), np.nan, test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['commission_description'].str.contains('month') == True) & (test_data['comm_cleaned'] <= 1.5), np.nan, test_data['comm_cleaned'])
-        test_data['comm_cleaned'] = np.where((test_data['comm_cleaned'] < 0.06), test_data['comm_cleaned'] * 100, test_data['comm_cleaned'])
-        
-        test_data['commission_amount_percentage'] = np.where((test_data['commission_amount_percentage'].isnull() == False), test_data['commission_amount_percentage'], test_data['comm_cleaned'])
-
-        return test_data
-        
     def handle_case(self, test_data):
     
         test_data['buildings_building_status'] = test_data['buildings_building_status'].str.lower().str.title()
@@ -395,8 +356,6 @@ class PrepareLogs:
         test_data['street_address'] = np.where((test_data['street_address'].isnull() == True), '', test_data['street_address'])
         test_data['street_address'] = test_data['street_address'].str.lower()
         test_data['commission_description'] = np.where((test_data['commission_description'].isnull() == True),'', test_data['commission_description'])
-        
-        test_data = self.clean_comm(test_data)
         
         test_data['property_source_id'] = test_data['property_source_id'].astype(str)
         test_data['property_reis_rc_id'] = test_data['property_reis_rc_id'].astype(str)
@@ -478,6 +437,45 @@ class PrepareLogs:
             logging.info("There are {:,} properties that do not have a total size".format(len(temp.drop_duplicates('property_source_id'))))
             logging.info("\n")
             
+        return test_data
+
+    def clean_comm(self, test_data):
+        
+        test_data['commission_description'] = test_data['commission_description'].str.strip()
+        test_data['commission_description'] = test_data['commission_description'].str.lower()
+        test_data['commission_description'] = test_data['commission_description'].str.replace('\*', '')
+        test_data['comm_cleaned'] = ''
+
+        test_data['temp'] = test_data['commission_description'].str.split(' ').str[0].str.strip()
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('0.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+
+        test_data['temp'] = test_data['commission_description'].str.split('/').str[0].str.strip()
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('0.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+
+        test_data['temp'] = test_data['commission_description'].str.split('%').str[0].str.strip()
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp'].str.replace('0.', '').str.isdigit()), test_data['temp'], test_data['comm_cleaned'])
+        test_data['temp1'] = test_data['temp'].str.split('/').str[0].str.strip()
+        test_data['comm_cleaned'] = np.where((test_data['temp1'].str.isdigit()), test_data['temp1'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp1'].str.replace('.', '').str.isdigit()), test_data['temp1'], test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['temp1'].str.replace('0.', '').str.isdigit()), test_data['temp1'], test_data['comm_cleaned'])
+
+        test_data['comm_cleaned'] = np.where((test_data['comm_cleaned'] == ''), np.nan, test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = test_data['comm_cleaned'].astype(float)
+        test_data['comm_cleaned'] = np.where((test_data['comm_cleaned'] > 10), np.nan, test_data['comm_cleaned'])
+
+        test_data['comm_cleaned'] = np.where(((test_data['commission_description'].str.contains('sf') == True) | (test_data['commission_description'].str.contains('ft') == True)) & (test_data['comm_cleaned'] <= 1.5), np.nan, test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['commission_description'].str.split(' ').str[0] == '1/2') & (test_data['comm_cleaned'] <= 1.5), np.nan, test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['commission_description'].str.contains('month') == True) & (test_data['comm_cleaned'] <= 1.5), np.nan, test_data['comm_cleaned'])
+        test_data['comm_cleaned'] = np.where((test_data['comm_cleaned'] < 0.06), test_data['comm_cleaned'] * 100, test_data['comm_cleaned'])
+        
+        test_data['commission_amount_percentage'] = np.where((test_data['commission_amount_percentage'].isnull() == False), test_data['commission_amount_percentage'], test_data['comm_cleaned'])
+
         return test_data
     
     def check_duplicate_catylist(self, test_data):
