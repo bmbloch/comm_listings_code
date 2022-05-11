@@ -327,7 +327,6 @@ class PrepareLogs:
         
     def clean_comm(self, test_data):
         
-        test_data = test_data_in_filt.copy()
         test_data['commission_description'] = test_data['commission_description'].str.strip()
         test_data['commission_description'] = test_data['commission_description'].str.lower()
         test_data['commission_description'] = test_data['commission_description'].str.replace('\*', '')
