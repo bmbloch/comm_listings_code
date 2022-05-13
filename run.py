@@ -87,7 +87,7 @@ def get_dicts():
                                 'survdate': 'surv_date',
                                 'metcode': 'msa',
                                 'subid': 'gsub',
-                                'size': 'tot_size',
+                                'ind_size': 'tot_size',
                                 'propname': 'property_name',
                                 'year': 'first_year',
                                 'month': 'buildings_construction_expected_completion_month',
