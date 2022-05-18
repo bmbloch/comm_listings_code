@@ -27,6 +27,13 @@ from os.path import isfile, join
 import os
 import multiprocessing as mp
 
+import boto3
+import base64
+from botocore.exceptions import ClientError
+import json
+#!pip install redshift_connector
+import redshift_connector
+
 def get_home():
     if os.name == "nt": return "//odin/reisadmin/central/square/data/zzz-bb-test2/python/catylist_snapshots"
     else: return "/home/central/square/data/zzz-bb-test2/python/catylist_snapshots"
@@ -48,9 +55,78 @@ class PrepareLogs:
         self.curryr = curryr
         self.currmon = currmon
         
+    def get_secret(self):
+    
+        # If you need more information about configurations or implementing the sample code, visit the AWS docs:   
+        # https://aws.amazon.com/developers/getting-started/python/
+
+        secret_name = "arn:aws:secretsmanager:us-east-1:006245041337:secret:development/cre/db/redshift/crereader-qBRnft"
+        region_name = "us-east-1"
+        # Create a Secrets Manager client
+        session = boto3.session.Session()
+        client = session.client(
+            service_name='secretsmanager',
+            region_name=region_name
+        )
+        # In this sample we only handle the specific exceptions for the 'GetSecretValue' API.
+        # See https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        # We rethrow the exception by default.
+        try:
+            get_secret_value_response = client.get_secret_value(
+                SecretId=secret_name
+            )
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'DecryptionFailureException':
+                # Secrets Manager can't decrypt the protected secret text using the provided KMS key.
+                # Deal with the exception here, and/or rethrow at your discretion.
+                raise e
+            elif e.response['Error']['Code'] == 'InternalServiceErrorException':
+                # An error occurred on the server side.
+                # Deal with the exception here, and/or rethrow at your discretion.
+                raise e
+            elif e.response['Error']['Code'] == 'InvalidParameterException':
+                # You provided an invalid value for a parameter.
+                # Deal with the exception here, and/or rethrow at your discretion.
+                raise e
+            elif e.response['Error']['Code'] == 'InvalidRequestException':
+                # You provided a parameter value that is not valid for the current state of the resource.
+                # Deal with the exception here, and/or rethrow at your discretion.
+                raise e
+            elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+                # We can't find the resource that you asked for.
+                # Deal with the exception here, and/or rethrow at your discretion.
+                raise e
+        else:
+            # Decrypts secret using the associated KMS key.
+            # Depending on whether the secret is a string or binary, one of these fields will be populated.
+            if 'SecretString' in get_secret_value_response:
+                secret = get_secret_value_response['SecretString']
+            else:
+                decoded_binary_secret = base64.b64decode(get_secret_value_response['SecretBinary'])
+        return get_secret_value_response
+
     def load_incrementals(self, sector, type_dict_all, rename_dict_all, consistency_dict, load, test_data_in=pd.DataFrame()):
         if load:
-            test_data_in = pd.read_csv('{}/InputFiles/listings_{}m{}.csv'.format(self.home, self.curryr, self.currmon), na_values= "", keep_default_na = False, dtype={'property_geo_subid_list': 'object'})
+            if self.home[0:2] == 's3':
+                logging.info('Querying View...')
+                logging.info('\n')
+                credentials = self.get_secret()
+                username = json.loads(credentials['SecretString'])['username']
+                password = json.loads(credentials['SecretString'])['password']
+                host = json.loads(credentials['SecretString'])['host']
+                conn = redshift_connector.connect(
+                     host=host,
+                     database='dev',
+                     user=username,
+                     password=password
+                  )
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM consumption.v_catylisturt_listing_to_econ")
+                test_data_in: pd.DataFrame = cursor.fetch_dataframe()
+                test_data_in.replace([None], np.nan, inplace=True)
+
+            else:
+                test_data_in = pd.read_csv('{}/InputFiles/listings_{}m{}.csv'.format(self.home, self.curryr, self.currmon), na_values= "", keep_default_na = False, dtype={'property_geo_subid_list': 'object'})
             logging.info("Incrementals data has {:,} unique listings and {:,} unique properties".format(len(test_data_in.drop_duplicates('listed_space_id')), len(test_data_in.drop_duplicates('property_source_id'))))
             logging.info('\n')
 
