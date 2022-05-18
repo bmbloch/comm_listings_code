@@ -426,7 +426,7 @@ try:
 
                 # Convert variables to lower case, and perform other type conversions as necessary
                 test_data = prepLogs.handle_case(test_data)
-
+                
                 # Clean the text field that holds some of the commission data
                 test_data = prepLogs.clean_comm(test_data)
                 
@@ -461,7 +461,7 @@ try:
                 id_check.to_csv("{}/OutputFiles/{}/logic_logs/id_check_{}m{}.csv".format(get_home(), sector, curryr, currmon), index=False)           
                 size_method = test_data.copy()
                 size_method = size_method[['property_source_id', 'id_use', 'size_method', 'tot_size']]
-                
+
                 if not stop:
 
                     # Format realid and phase correctly

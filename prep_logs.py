@@ -118,7 +118,9 @@ class PrepareLogs:
         filt['surv_date'] = pd.to_datetime(filt['surv_date'])
         filt['surv_date'] = filt['surv_date'].fillna(pd.Timestamp("{}/{}/{}".format(self.currmon, '15', self.curryr)))
 
-        # Remove asking rents if no listings at the property were surveyed in this period, and transaction rents if the listing was not surveyed in this period, regardless of the survey status of other listings at the property
+        # Remove asking rents and transaction rents if no listings at the property were surveyed in this period
+        # This will allow sq to move rents for listings that simply remain available for long periods of time
+        # But we need to retain the rent even if outside the tight month survey window if other rents for spaces at the property were verified in the tight window, so the proeprty level aggregation is not thrown off
         if self.currmon != 1:
             prior_mon = self.currmon - 1
             prior_yr = self.curryr
@@ -135,20 +137,24 @@ class PrepareLogs:
         temp['reis_mon'] = np.where((temp['survday'] > 15) & (temp['survmon'] < 12), temp['survmon'] + 1, temp['reis_mon'])
         temp['reis_qtr'] = np.ceil(temp['reis_mon'] / 3)
         temp = temp[(temp['reis_yr'] == self.curryr) & (temp['reis_mon'] == self.currmon)]
-        temp = temp[(temp['lease_asking_rent_min_amt'].isnull() == False) | (temp['lease_asking_rent_max_amt'].isnull() == False)]
-        temp['has_rent_in_month'] = True
+        temp = temp[(temp['lease_asking_rent_min_amt'].isnull() == False) | (temp['lease_asking_rent_max_amt'].isnull() == False) | (temp['lease_transaction_rent_price_min_amt'].isnull() == False) | (temp['lease_transaction_rent_price_max_amt'].isnull() == False)]
+        temp['rent_in_month'] = True
         temp = temp.drop_duplicates('property_source_id')
-        filt = filt.join(temp.set_index('property_source_id')[['has_rent_in_month']], on='property_source_id')
-        filt['has_rent_in_month'] = np.where((filt['has_rent_in_month'].isnull() == True), False, filt['has_rent_in_month'])
-        for col in ['lease_asking_rent_min_amt', 'lease_asking_rent_max_amt']:
-            filt[col].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))) & (filt['has_rent_in_month']== False), np.nan, inplace=True)
-        for col in ['lease_transaction_rent_price_min_amt', 'lease_transaction_rent_price_max_amt']:
-            filt[col].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))), np.nan, inplace=True)
-
+        filt = filt.join(temp.set_index('property_source_id')[['rent_in_month']], on='property_source_id')
+        filt['rent_in_month'] = np.where((filt['rent_in_month'].isnull() == True), False, filt['rent_in_month'])
+        for col in ['lease_asking_rent_min_amt', 'lease_asking_rent_max_amt', 'lease_transaction_rent_price_min_amt', 'lease_transaction_rent_price_max_amt']:
+            filt[col].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))) & (filt['rent_in_month'] == False), np.nan, inplace=True)
+            filt[col].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))) & (filt['rent_in_month'] == False), np.nan, inplace=True)
+        
         filt['surv_yr'].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))), self.curryr, inplace=True)
         filt['surv_qtr'].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))), np.ceil(self.currmon / 3), inplace=True)
         filt['surv_date'].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))), (pd.Timestamp("{}/{}/{}".format(self.currmon, '15', self.curryr))), inplace=True)
 
+        filt['surv_yr'].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))), self.curryr, inplace=True)
+        filt['surv_qtr'].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))), np.ceil(self.currmon / 3), inplace=True)
+        filt['surv_date'].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))), (pd.Timestamp("{}/{}/{}".format(self.currmon, '15', self.curryr))), inplace=True)
+        
+        
         filt['survyr'] = filt['surv_date'].dt.year
         filt['survmon'] = filt['surv_date'].dt.month
         filt['survday'] = filt['surv_date'].dt.day
@@ -157,29 +163,9 @@ class PrepareLogs:
         filt['reis_mon'] = np.where((filt['survday'] > 15) & (filt['survmon'] < 12), filt['survmon'] + 1, filt['reis_mon'])
         filt['reis_qtr'] = np.ceil(filt['reis_mon'] / 3)
 
-        temp = filt.copy() 
-        temp = temp[(temp['reis_yr'] > self.curryr) | ((temp['reis_yr'] == self.curryr) & (temp['reis_mon'] > self.currmon))]
-        if len(temp) > 0 and self.first:
-            logging.info("There are survey dates that postdate the REIS monthly survey window")
-            logging.info("\n")
-
-        temp = filt.copy()
-        temp['count'] = temp.groupby('property_source_id')['property_source_id'].transform('count')
-        temp['count_out'] = temp[(temp['reis_yr'] != self.curryr) | (temp['reis_mon'] != self.currmon) & (temp['has_rent_in_month'] == False)].groupby('property_source_id')['property_source_id'].transform('count')
-        temp['count_out'] = temp.groupby('property_source_id')['count_out'].bfill()
-        temp['count_out'] = temp.groupby('property_source_id')['count_out'].ffill()
-        temp = temp[((temp['reis_yr'] != self.curryr) | (temp['reis_mon'] != self.currmon)) & (temp['has_rent_in_month'] == False) & (temp['count'] == temp['count_out'])]
-        if len(temp) > 0:
-            temp['reason'] = 'Survey is after end of REIS monthly survey window'
-            self.drop_log = self.drop_log.append(temp[['property_source_id', 'reason']].drop_duplicates('property_source_id'), ignore_index=True)
-        
-        filt = filt[((filt['reis_yr'] == self.curryr) & (filt['reis_mon'] == self.currmon)) | (filt['has_rent_in_month'] == True)]
+        filt = filt[((filt['reis_yr'] == self.curryr) & (filt['reis_mon'] == self.currmon))]
 
         filt['surv_qtr'] = filt['reis_qtr']
-        
-        filt['surv_yr'].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))) & (filt['has_rent_in_month'] == True), self.curryr, inplace=True)
-        filt['surv_qtr'].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))) & (filt['has_rent_in_month'] == True), np.ceil(self.currmon / 3), inplace=True)
-        filt['surv_date'].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))) & (filt['has_rent_in_month'] == True), (pd.Timestamp("{}/{}/{}".format(self.currmon, '15', self.curryr))), inplace=True)
         
         filt['rent_basis'] = np.where((filt['rent_basis'].isnull() == True), '', filt['rent_basis'])
         filt['rent_basis'] = np.where((filt['lease_asking_rent_min_amt'].isnull() == True) & (filt['lease_asking_rent_max_amt'].isnull() == True) & (filt['lease_transaction_rent_price_min_amt'].isnull() == True) & (filt['lease_transaction_rent_price_max_amt'].isnull() == True), '', filt['rent_basis'])
@@ -222,8 +208,6 @@ class PrepareLogs:
         df.columns= df.columns.str.strip().str.lower()
         logging.info('\n')
         print("{} Logs Loaded".format(self.sector.title()))
-        if self.home == 's3':
-            song_alert(sound='done')
 
         return df
     
@@ -256,13 +240,13 @@ class PrepareLogs:
             log['max_size'] = log.groupby('realid')['tot_size'].transform('max')
             temp = log.copy()
             temp = temp.drop_duplicates(['realid', 'n_size'])
-            temp['tot_n_size'] = temp.groupby('realid')['n_size'].transform('sum')
+            temp['tot_n_size'] = temp.groupby('realid')['n_size'].transform('sum', min_count=1)
             temp = temp.drop_duplicates('realid')
             log = log.join(temp.set_index('realid')[['tot_n_size']], on='realid')
             log['n_size'] = np.where((log['tot_n_size'].isnull() == False), log['tot_n_size'], log['n_size'])
             temp = log.copy()
             temp = temp.drop_duplicates(['realid', 'a_size'])
-            temp['tot_a_size'] = temp.groupby('realid')['a_size'].transform('sum')
+            temp['tot_a_size'] = temp.groupby('realid')['a_size'].transform('sum', min_count=1)
             temp = temp.drop_duplicates('realid')
             log = log.join(temp.set_index('realid')[['tot_a_size']], on='realid')
             log['a_size'] = np.where((log['tot_a_size'].isnull() == False), log['tot_a_size'], log['a_size'])
@@ -438,7 +422,7 @@ class PrepareLogs:
             logging.info("\n")
             
         return test_data
-
+    
     def clean_comm(self, test_data):
         
         test_data['commission_description'] = test_data['commission_description'].str.strip()
@@ -549,7 +533,7 @@ class PrepareLogs:
             self.logic_log = self.logic_log.append(temp.drop_duplicates('property_source_id')[['flag', 'property_source_id', 'status']])
         
         temp = test_data.copy()
-        temp = temp[temp['category'] == 'retail']
+        temp = temp[temp['space_category'] == 'retail']
         temp = temp.drop_duplicates('property_source_id')
         temp = temp[(temp['nonanchor_within_business_park_size_sf']  == temp['anchor_within_business_park_size_sf']) & (temp['nonanchor_within_business_park_size_sf'].isnull() == False)]
         if len(temp) > 15:
@@ -596,6 +580,10 @@ class PrepareLogs:
             temp['c_value'] = temp['concat_props']
             temp['status'] = 'flagged'
             self.logic_log = self.logic_log.append(temp.drop_duplicates('park_identity')[['flag', 'property_source_id', 'c_value', 'status']])
+        
+        temp = test_data.copy()
+        temp = temp[temp['category'] == 'retail']
+        temp = temp[(temp['businesspark'] != '') & (temp['rownum_buspark_retail_size_desc'] > 0) & ((temp['business_park_retail_size_sf'] == 0) | (temp['business_park_retail_size_sf'].isnull() == True))]
         
         if len(self.logic_log) > orig_len:
             logging.info("\n")
@@ -742,6 +730,9 @@ class PrepareLogs:
     
     def choose_catylist_size(self, test_data, log):
         
+        test_data['n_size'] = np.nan
+        test_data['a_size'] = np.nan
+        
         if self.sector == "off":
             bp_field = 'business_park_office_size_sf'
             row_num = 'rownum_buspark_office_size_desc'
@@ -785,11 +776,22 @@ class PrepareLogs:
        
         # Replace total building size with the rentable sqft, if sector specific size was not used
         test_data['size_diff_rentable'] = abs((test_data['buildings_size_rentablesf'] - test_data['log_tot_size'])) / test_data['log_tot_size']
-        test_data['tot_size'] = np.where((test_data['size_method'] != 'Sector Size SQFT') & (test_data['size_diff_rentable'] < test_data['size_diff_tot']) & (test_data['buildings_size_rentablesf'] > 0) & (test_data['buildings_size_rentablesf'].isnull() == False), test_data['buildings_size_rentablesf'], test_data['tot_size'])
-        test_data['size_method'] = np.where((test_data['size_method'] != 'Sector Size SQFT') & (test_data['size_diff_rentable'] < test_data['size_diff_tot']) & (test_data['buildings_size_rentablesf'] > 0) & (test_data['buildings_size_rentablesf'].isnull() == False), 'Rentable SQFT', test_data['size_method'])
+        test_data['tot_size'] = np.where((test_data['size_method'] != 'Sector Size SQFT') & ((test_data['buildings_size_rentablesf'] / test_data['tot_size'] > 0.25) | (test_data['tot_size'].isnull() == True)) & (test_data['size_diff_rentable'] < test_data['size_diff_tot']) & (test_data['buildings_size_rentablesf'] > 0) & (test_data['buildings_size_rentablesf'].isnull() == False), test_data['buildings_size_rentablesf'], test_data['tot_size'])
+        test_data['size_method'] = np.where((test_data['size_method'] != 'Sector Size SQFT') & ((test_data['buildings_size_rentablesf'] / test_data['tot_size'] > 0.25) | (test_data['tot_size'].isnull() == True)) & (test_data['size_diff_rentable'] < test_data['size_diff_tot']) & (test_data['buildings_size_rentablesf'] > 0) & (test_data['buildings_size_rentablesf'].isnull() == False), 'Rentable SQFT', test_data['size_method'])
         test_data['size_diff_tot'] = abs((test_data['tot_size'] - test_data['log_tot_size'])) / test_data['log_tot_size']
         test_data['size_diff_tot'] = np.where((test_data['tot_size'].isnull() == True), np.inf, test_data['size_diff_tot'])
        
+        # If a property did not have a gross building size but tot_size was able to be filled in by rentable sqft or sector sqft, determine the anchor status and size now, because view wont do it if no gross size
+        if self.sector == "ret":
+            test_data['test1'] = (test_data['tot_size'] >= 9300) & (test_data['occupancy_type'] == 'single_tenant') 
+            test_data['test2'] = (test_data['tot_size'] >= 18600)
+            test_data['test3'] = (test_data['rownum_buspark_retail_size_desc'] == 1) & (test_data['tot_size'] >= 9300)
+            test_data['test4'] = (test_data['orig_tot_size'].isnull() == True) & (test_data['tot_size'].isnull() == False)
+            test_data['retail_property_is_anchor_flag'] = np.where(((test_data['test1']) | (test_data['test2']) | (test_data['test3'])) & (test_data['test4']), 'Y', test_data['retail_property_is_anchor_flag'])
+            test_data['retail_property_is_anchor_flag'] = np.where((test_data['test1'] == False) & (test_data['test2'] == False) & (test_data['test3'] == False) & (test_data['test4']), 'N', test_data['retail_property_is_anchor_flag'])
+            test_data['a_size'] = np.where(((test_data['test1']) | (test_data['test2']) | (test_data['test3'])) & (test_data['test4']), test_data['tot_size'], test_data['a_size'])
+            test_data['n_size'] = np.where((test_data['test1'] == False) & (test_data['test2'] == False) & (test_data['test3'] == False) & (test_data['test4']), test_data['tot_size'], test_data['n_size'])
+            
         # To handle cases where REIS may be grouping multiple buildings under one ID, replace total building size with the business park total size
         test_data['size_diff_bp'] = abs((test_data[bp_field] - test_data['log_tot_size']) / test_data['log_tot_size'])
         if self.sector == "ret":
@@ -798,6 +800,9 @@ class PrepareLogs:
             test_data['use_park'] = ((test_data['log_bldgs'] > 1) | (test_data['log_bldgs'].isnull() == True)) & (test_data['size_diff_bp'] < test_data['size_diff_tot']) & (test_data[bp_field].isnull() == False) & (test_data[bp_field] > 0)
 
         test_data['tot_size'] = np.where(test_data['use_park'], test_data[bp_field], test_data['tot_size'])
+        if self.sector == "ret":
+            test_data['n_size'] = np.where((test_data['use_park']), test_data['nonanchor_within_business_park_size_sf'], test_data['n_size'])
+            test_data['a_size'] = np.where((test_data['use_park']), test_data['anchor_within_business_park_size_sf'], test_data['a_size'])
         test_data['size_method'] = np.where(test_data['use_park'], 'Business Park SQFT', test_data['size_method'])
          
         test_data['size_diff_use'] = np.where((test_data['use_park']), test_data['size_diff_bp'], test_data['size_diff_tot'])
@@ -807,13 +812,15 @@ class PrepareLogs:
             test_data['test2'] = (test_data['businesspark'] != '') & (test_data['businesspark'].isnull() == False)
             test_data['test3'] = test_data['business_park_retail_size_sf'].isnull() == False
             test_data['test4'] = test_data['size_diff_use'] <= 0.05
-            test_data['test5'] = (test_data['log_n_size'].isnull() == False) | (test_data['log_a_size'].isnull() == False) | ((test_data['tot_size'].isnull() == True) & (test_data['log_tot_size'].isnull() == False))
+            test_data['test5'] = (((test_data['log_n_size'].isnull() == False) | (test_data['log_a_size'].isnull() == False)) & ((test_data['log_n_size'] > 0) & (test_data['log_a_size'] > 0))) | ((test_data['tot_size'].isnull() == True) & (test_data['log_tot_size'].isnull() == False))
             
             test_data['use_reis_breakout'] = np.where((test_data['test1']) & (test_data['test2']) & (test_data['test3']) & (test_data['test4']) & (test_data['test5']), True, False)
-            test_data['use_reis_breakout'] = np.where((test_data['foundation_property_id'] != '') & ((test_data['businesspark'] == '') | (test_data['businesspark'].isnull() == True)) & ((test_data['size_diff_use'] <= 0.05) | (test_data['tot_size'].isnull() == True)), True, test_data['use_reis_breakout'])
+            test_data['use_reis_breakout'] = np.where((test_data['foundation_property_id'] != '') & ((test_data['businesspark'] == '') | (test_data['businesspark'].isnull() == True) | (test_data['business_park_retail_size_sf'] == 0) | (test_data['business_park_retail_size_sf'].isnull() == True)) & ((test_data['size_diff_use'] <= 0.05) | (test_data['tot_size'].isnull() == True)), True, test_data['use_reis_breakout'])
             test_data['tot_size'] = np.where((test_data['use_reis_breakout']) & (test_data['log_tot_size'].isnull() == False), test_data['log_tot_size'], test_data['tot_size'])
-            test_data['n_size'] = np.where((test_data['use_reis_breakout']) & (test_data['log_tot_size'].isnull() == False), test_data['log_n_size'], np.nan)
-            test_data['a_size'] = np.where((test_data['use_reis_breakout']) & (test_data['log_tot_size'].isnull() == False), test_data['log_a_size'], np.nan)
+            test_data['n_size'] = np.where((test_data['use_reis_breakout']) & ((test_data['log_n_size'].isnull() == False) | (test_data['log_a_size'].isnull() == False)) & ((test_data['log_n_size']) > 0 | (test_data['log_a_size'] > 0)), test_data['log_n_size'], test_data['n_size'])
+            test_data['a_size'] = np.where((test_data['use_reis_breakout']) & ((test_data['log_n_size'].isnull() == False) | (test_data['log_a_size'].isnull() == False)) & ((test_data['log_n_size']) > 0 | (test_data['log_a_size'] > 0)), test_data['log_a_size'], test_data['a_size'])
+            test_data['n_size'] = np.where((test_data['use_reis_breakout']) & (test_data['n_size'].isnull() == True) & (test_data['a_size'] == test_data['tot_size']), 0, test_data['n_size'])
+            test_data['a_size'] = np.where((test_data['use_reis_breakout']) & (test_data['a_size'].isnull() == True) & (test_data['n_size'] == test_data['tot_size']), 0, test_data['a_size'])
             test_data['retail_property_is_anchor_flag'] = np.where((test_data['use_reis_breakout']) & (test_data['retail_property_is_anchor_flag'] == '') & (test_data['tot_size'] >= 9300), 'Y', test_data['retail_property_is_anchor_flag'])
             test_data['retail_property_is_anchor_flag'] = np.where((test_data['use_reis_breakout']) & (test_data['retail_property_is_anchor_flag'] == '') & (test_data['tot_size'] < 9300), 'N', test_data['retail_property_is_anchor_flag'])
             test_data['size_method'] = np.where((test_data['use_reis_breakout']), 'REIS Size SQFT', test_data['size_method'])
@@ -823,28 +830,45 @@ class PrepareLogs:
         temp = temp[temp['foundation_property_id'].str[0] == self.sector_map[self.sector]['prefix']]
         temp = temp[(temp['use_park'])]
         temp = temp[(temp['businesspark'] != '') & (temp['businesspark'].isnull() == False)]
+        temp = temp.join(test_data[test_data['a_size'].isnull() == False].drop_duplicates('park_identity').set_index('park_identity').rename(columns={'a_size': 'a_size_filled'})[['a_size_filled']], on='park_identity')
+        temp = temp.join(test_data[test_data['n_size'].isnull() == False].drop_duplicates('park_identity').set_index('park_identity').rename(columns={'n_size': 'n_size_filled'})[['n_size_filled']], on='park_identity')
+        temp['anchor_within_business_park_size_sf'] = np.where((temp['a_size_filled'].isnull() == False), temp['a_size_filled'], temp['anchor_within_business_park_size_sf'])
+        temp['nonanchor_within_business_park_size_sf'] = np.where((temp['n_size_filled'].isnull() == False), temp['n_size_filled'], temp['nonanchor_within_business_park_size_sf'])
         temp = temp.drop_duplicates('park_identity')
         test_data = test_data.join(temp.set_index('park_identity').rename(columns={'foundation_property_id': 'foundation_property_id_from_park', 'metcode': 'metcode_from_park', 'gsub': 'subid_from_park', bp_field: 'tot_size_from_park', 'anchor_within_business_park_size_sf': 'anchor_size_from_park', 'nonanchor_within_business_park_size_sf': 'nonanchor_size_from_park', 'type1': 'type1_from_park'})[['foundation_property_id_from_park', 'metcode_from_park', 'subid_from_park', 'tot_size_from_park', 'anchor_size_from_park', 'nonanchor_size_from_park', 'type1_from_park']], on='park_identity')
-        test_data['use_park'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), True, test_data['use_park'])
-        test_data['size_method'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), 'Linked To Catylist ID Via BP', test_data['size_method'])
-        test_data['metcode'] = np.where((test_data['foundation_property_id'] == '') & (test_data['metcode_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), test_data['metcode_from_park'], test_data['metcode'])
-        test_data['gsub'] = np.where((test_data['foundation_property_id'] == '') & (test_data['subid_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), test_data['subid_from_park'], test_data['gsub'])
-        test_data['tot_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['tot_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), test_data['tot_size_from_park'], test_data['tot_size'])
+        test_data['use_park'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), True, test_data['use_park'])
+        test_data['size_method'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), 'Linked To Catylist ID Via BP', test_data['size_method'])
+        test_data['metcode'] = np.where((test_data['foundation_property_id'] == '') & (test_data['metcode_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['metcode_from_park'], test_data['metcode'])
+        test_data['gsub'] = np.where((test_data['foundation_property_id'] == '') & (test_data['subid_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['subid_from_park'], test_data['gsub'])
+        test_data['tot_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['tot_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['tot_size_from_park'], test_data['tot_size'])
+        
+        # Because prop size may have changed from the initial value, recalc anchor status as long as the size method was not bp size (in that case, we do want to retain the individual original anchor statuses, so we can calculate anchor and non anchor rents at the park for the different properties that compose it as in traditional REIS)
+        if self.sector == "ret":
+            test_data['test1'] = (test_data['tot_size'] >= 9300) & (test_data['occupancy_type'] == 'single_tenant') 
+            test_data['test2'] = (test_data['tot_size'] >= 18600)
+            test_data['test3'] = (test_data['rownum_buspark_retail_size_desc'] == 1) & (test_data['tot_size'] >= 9300)
+            test_data['retail_property_is_anchor_flag'] = np.where(((test_data['test1']) | (test_data['test2']) | (test_data['test3'])) & (test_data['size_method'] != 'Business Park SQFT') & (test_data['use_reis_breakout'] == False), 'Y', test_data['retail_property_is_anchor_flag'])
+            test_data['retail_property_is_anchor_flag'] = np.where((test_data['test1'] == False) & (test_data['test2'] == False) & (test_data['test3'] == False) & (test_data['size_method'] != 'Business Park SQFT') & (test_data['use_reis_breakout'] == False), 'N', test_data['retail_property_is_anchor_flag'])
+            test_data['retail_property_is_anchor_flag'] = np.where((test_data['use_reis_breakout']) & ((test_data['log_n_size'] == 0) | (test_data['log_n_size'].isnull() == True)) & (test_data['log_a_size'] > 0), 'Y', test_data['retail_property_is_anchor_flag'])
+            test_data['retail_property_is_anchor_flag'] = np.where((test_data['use_reis_breakout']) & ((test_data['log_a_size'] == 0) | (test_data['log_a_size'].isnull() == True)) & (test_data['log_n_size'] > 0), 'N', test_data['retail_property_is_anchor_flag'])
+    
+        if self.sector == "ret":
+            test_data['type1'] = np.where((test_data['foundation_property_id'] == '') & (test_data['type1_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])) & (test_data['type1'] == ''), test_data['type1_from_park'], test_data['type1'])
+            test_data['n_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['nonanchor_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['nonanchor_size_from_park'], test_data['n_size'])
+            test_data['a_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['anchor_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['anchor_size_from_park'], test_data['a_size'])
+        test_data['foundation_property_id'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['foundation_property_id_from_park'], test_data['foundation_property_id'])
         
         if self.sector == "ret":
-            test_data['type1'] = np.where((test_data['foundation_property_id'] == '') & (test_data['subid_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])) & (test_data['type1'] == ''), test_data['subid_from_park'], test_data['type1'])
-            test_data['n_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['nonanchor_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), test_data['nonanchor_size_from_park'], test_data['n_size'])
-            test_data['a_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['anchor_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), test_data['anchor_size_from_park'], test_data['a_size'])
-        test_data['foundation_property_id'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector])), test_data['foundation_property_id_from_park'], test_data['foundation_property_id'])
-        if self.sector == "ret":
-            test_data['n_size'] = np.where((test_data['n_size'].isnull() == True) & (test_data['retail_property_is_anchor_flag'] == 'N'), test_data['tot_size'], test_data['n_size'])
-            test_data['a_size'] = np.where((test_data['a_size'].isnull() == True) & (test_data['retail_property_is_anchor_flag'] == 'Y'), test_data['tot_size'], test_data['a_size'])
-            test_data['a_size'] = np.where((test_data['n_size'].isnull() == False) & (test_data['a_size'].isnull() == True), 0, test_data['a_size'])
+            test_data['n_size'] = np.where((test_data['n_size'].isnull() == True) & (test_data['retail_property_is_anchor_flag'] == 'N') & ((test_data['use_reis_breakout'] == False) | (test_data['tot_size'] == test_data['log_tot_size'])), test_data['tot_size'], test_data['n_size'])
+            test_data['a_size'] = np.where((test_data['a_size'].isnull() == True) & (test_data['retail_property_is_anchor_flag'] == 'Y') & ((test_data['use_reis_breakout'] == False) | (test_data['tot_size'] == test_data['log_tot_size'])), test_data['tot_size'], test_data['a_size'])
             test_data['n_size'] = np.where((test_data['a_size'].isnull() == False) & (test_data['n_size'].isnull() == True), 0, test_data['n_size'])
-            test_data['a_size'] = test_data['a_size'].fillna(0)
-            test_data['n_size'] = test_data['n_size'].fillna(0)
-            
-        test_data['size_method'] = np.where((test_data['tot_size'] == test_data['orig_tot_size']) | ((test_data['orig_tot_size'].isnull() == True) & (test_data['tot_size'].isnull() == True)), 'Building Size SQFT', test_data['size_method'])
+            test_data['a_size'] = np.where((test_data['n_size'].isnull() == False) & (test_data['a_size'].isnull() == True), 0, test_data['a_size'])
+            test_data['n_size'] = np.where((test_data['n_size'].isnull() == True) & (test_data['use_reis_breakout'] == False), 0, test_data['n_size'])
+            test_data['a_size'] = np.where((test_data['a_size'].isnull() == True) & (test_data['use_reis_breakout'] == False), 0, test_data['a_size'])
+        
+        if self.sector == "off" or self.sector == "ind":
+            test_data['use_reis_breakout'] = False
+        test_data['size_method'] = np.where(((test_data['tot_size'] == test_data['orig_tot_size']) | ((test_data['orig_tot_size'].isnull() == True) & (test_data['tot_size'].isnull() == True))) & ((test_data['use_reis_breakout'] == False)| (test_data['size_method'] == '')), 'Building Size SQFT', test_data['size_method'])
         
         return test_data
     
@@ -1182,13 +1206,13 @@ class PrepareLogs:
         temp1 = test_data.copy()
         temp1 = temp1[((~temp1['space_category'].isin(self.space_map[self.sector])) | ((self.sector == 'ind') & (temp1['space_category'] == 'office') & (temp1['type2'] != "F"))) & (temp1['space_category'].isnull() == False) & (temp1['space_category'] != '')]
         temp1 = temp1[(temp1['lease_sublease'] == 0) | (temp1['lease_sublease'].isnull() == True)]
-        temp1['prop_dir_avail'] = temp.groupby('property_source_id')['space_size_available'].transform('sum')
+        temp1['prop_dir_avail'] = temp.groupby('property_source_id')['space_size_available'].transform('sum', min_count=1)
         temp1 = temp1.drop_duplicates('property_source_id')
         test_data = test_data.join(temp1.set_index('property_source_id')[['prop_dir_avail']], on='property_source_id')
         temp1 = test_data.copy()
         temp1 = temp1[((~temp1['space_category'].isin(self.space_map[self.sector])) | ((self.sector == 'ind') & (temp1['space_category'] == 'office') & (temp1['type2'] != "F"))) & (temp1['space_category'].isnull() == False) & (temp1['space_category'] != '')]
         temp1 = temp1[(temp1['lease_sublease'] == 1)]
-        temp1['prop_sub_avail'] = temp1.groupby('property_source_id')['space_size_available'].transform('sum')
+        temp1['prop_sub_avail'] = temp1.groupby('property_source_id')['space_size_available'].transform('sum', min_count=1)
         temp1 = temp1.drop_duplicates('property_source_id')
         test_data = test_data.join(temp1.set_index('property_source_id')[['prop_sub_avail']], on='property_source_id')
         test_data['prop_dir_avail'] = test_data['prop_dir_avail'].fillna(0)
@@ -1250,7 +1274,7 @@ class PrepareLogs:
             test_data['count_sublease'] = test_data[test_data['lease_sublease'] == 1].groupby('property_source_id')['property_source_id'].transform('count')
             test_data['count_sublease'] = test_data.groupby('property_source_id')['count_sublease'].bfill()
             test_data['count_sublease'] = test_data.groupby('property_source_id')['count_sublease'].ffill()
-            test_data['total_avail'] = test_data.groupby('property_source_id')['space_size_available'].transform('sum')
+            test_data['total_avail'] = test_data.groupby('property_source_id')['space_size_available'].transform('sum', min_count=1)
             temp = test_data.copy()
             temp = temp[(temp['count_sublease'] > 0) & (temp['count_sublease'] < temp['count']) & (temp['total_avail'] > temp['tot_size'])]
             if len(temp) > 0:
@@ -1590,23 +1614,30 @@ class PrepareLogs:
             prefixes = ['a_', 'n_']
         else:
             prefixes = ['']
+        
+        # Before 2022m5, had been re-computing anchor status at all types of props at the space level. Cant do that, as might end up with a certain cut's avail/rent at props without size for that cut
+        # But can still do this for props that have a mix of anchor and non anchor size due to taking the reis breakout
+        if self.sector == "ret":
+            test_data['has_mix'] = np.where((test_data['n_size'] > 0) & (test_data['a_size'] > 0), True, False)
+            test_data['retail_anchor_space_level'] = ''
+            test_data['retail_anchor_space_level'] = np.where((test_data['has_mix'] == False), test_data['retail_property_is_anchor_flag'], test_data['retail_anchor_space_level'])
+            test_data['retail_anchor_space_level'] = np.where((test_data['has_mix']) & (test_data['space_size_available'] < 9300) & (test_data['space_size_available'] > 0), 'N', test_data['retail_anchor_space_level'])
+            test_data['retail_anchor_space_level'] = np.where((test_data['has_mix']) & (test_data['space_size_available'] >= 9300), 'Y', test_data['retail_anchor_space_level'])
+            test_data['retail_anchor_space_level'] = np.where((test_data['has_mix']) & (test_data['space_size_available_leased'] < 9300) & (test_data['space_size_available_leased'].isnull() == False), 'N', test_data['retail_anchor_space_level'])
+            test_data['retail_anchor_space_level'] = np.where((test_data['has_mix']) & (test_data['space_size_available_leased'] >= 9300) & (test_data['space_size_available_leased'].isnull() == False), 'Y', test_data['retail_anchor_space_level'])
+
 
         for prefix in prefixes:
 
             temp = test_data.copy()
             
-            if self.sector == "ret":
-                temp['retail_property_is_anchor_flag'] = np.where((temp['space_size_available'] < 9300) & (temp['space_size_available'] > 0), 'N', 'Y')
-                temp['retail_property_is_anchor_flag'] = np.where((temp['space_size_available_leased'] < 9300) & (temp['space_size_available_leased'].isnull() == False), 'N', temp['retail_property_is_anchor_flag'])
-                temp['retail_property_is_anchor_flag'] = np.where((temp['space_size_available_leased'] >= 9300) & (temp['space_size_available_leased'].isnull() == False), 'Y', temp['retail_property_is_anchor_flag'])
-
             if self.sector == "ind":
                 temp = temp[(temp['type2'] == "F") | (temp['space_category'] != 'office')]
             
             if self.sector == "ret" and prefix == 'a_':
-                temp = temp[temp['retail_property_is_anchor_flag'] == 'Y']
+                temp = temp[temp['retail_anchor_space_level'] == 'Y']
             elif self.sector == "ret" and prefix == 'n_':
-                temp = temp[temp['retail_property_is_anchor_flag'] == 'N']
+                temp = temp[temp['retail_anchor_space_level'] == 'N']
             
             temp1 = temp.copy()
             temp1 = temp1[(temp1['space_size_available'] <= 1) & (temp1['space_size_available'] > 0)]
@@ -1626,9 +1657,9 @@ class PrepareLogs:
                 temp1['status'] = 'dropped'
                 self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
             
-            temp = temp[(temp['lease_sublease'] == 0) | temp['lease_sublease'].isnull() == True]
+            temp = temp[(temp['lease_sublease'] == 0) | (temp['lease_sublease'].isnull() == True)]
             temp['space_size_available'] = np.where((temp['space_size_available'] <= 1) & (temp['space_size_available'] > 0), np.nan, temp['space_size_available'])
-            temp[prefix + 'prop_dir_avail'] = temp.groupby('id_use')['space_size_available'].transform('sum')
+            temp[prefix + 'prop_dir_avail'] = temp.groupby('id_use')['space_size_available'].transform('sum', min_count=1)
             temp = temp.drop_duplicates('id_use')
             test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_dir_avail']], on='id_use')
             
@@ -1636,7 +1667,7 @@ class PrepareLogs:
                 temp = test_data.copy()
                 temp = temp[(temp['lease_sublease'] == 1)]
                 temp['space_size_available'] = np.where((temp['space_size_available'] <= 1) & (temp['space_size_available'] > 0), np.nan, temp['space_size_available'])
-                temp['prop_sub_avail'] = temp.groupby('id_use')['space_size_available'].transform('sum')
+                temp['prop_sub_avail'] = temp.groupby('id_use')['space_size_available'].transform('sum', min_count=1)
                 temp = temp.drop_duplicates('id_use')
                 test_data = test_data.join(temp.set_index('id_use')[['prop_sub_avail']], on='id_use')
                 
@@ -1651,22 +1682,16 @@ class PrepareLogs:
             
             temp = test_data.copy()
             
-            # Determine the space level anchor status, for the purposes of assigning the rent to either anchor or non anchor
-            if self.sector == "ret":
-                temp['retail_property_is_anchor_flag'] = np.where((temp['space_size_available'] < 9300) & (temp['space_size_available'] > 0), 'N', 'Y')
-                temp['retail_property_is_anchor_flag'] = np.where((temp['space_size_available_leased'] < 9300) & (temp['space_size_available_leased'].isnull() == False), 'N', temp['retail_property_is_anchor_flag'])
-                temp['retail_property_is_anchor_flag'] = np.where((temp['space_size_available_leased'] >= 9300) & (temp['space_size_available_leased'].isnull() == False), 'Y', temp['retail_property_is_anchor_flag'])
-            
-            temp1 = temp.copy()
-            
+            # Because there might be scenarios where the space level anchor designation method does not jive with the property level method used to determine size, select spaces that might not be anchor on space level but that dont have non anchor size and vice versa
             if self.sector == "ret" and prefix == 'a_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'Y']
+                temp = temp[((temp['retail_anchor_space_level'] == 'Y') & ((temp['a_size'] > 0) | (temp['a_size'].isnull() == True))) | ((temp['n_size'] == 0) & ((temp['a_size'] > 0) | (temp['a_size'].isnull() == True)))]
             elif self.sector == "ret" and prefix == 'n_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'N']
-            
+                temp = temp[((temp['retail_anchor_space_level'] == 'N') & ((temp['n_size'] > 0) | (temp['n_size'].isnull() == True))) | ((temp['a_size'] == 0) & ((temp['n_size'] > 0) | (temp['n_size'].isnull() == True)))]
+
+            # Drop sublease listings when calculating rent, but theoretically all other performance data points are fine to include in the prop rollup
+            temp1 = temp.copy()
             temp1 = temp1[(temp1['lease_sublease'] == 0) | temp1['lease_sublease'].isnull() == True]
 
-            
             if self.sector == "off":
                 rent_log = 'avrent'
             elif self.sector == "ind":
@@ -1685,7 +1710,7 @@ class PrepareLogs:
                 temp1['mr_diff'] = np.inf
                 
             temp2 = temp1.copy()
-            temp2 = temp2[((temp2['avrent_norm'] < temp2[rent_log + '_l_range']) | (temp2['avrent_norm'] > temp2[rent_log + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True))]
+            temp2 = temp2[((temp2['avrent_norm'] < temp2[rent_log + '_l_range']) | (temp2['avrent_norm'] > temp2[rent_log + '_h_range'])) & ((abs(temp2['mr_diff']) > 0.02) | (temp2['mr_diff'].isnull() == True))]
             if len(temp2) > 0:
                 logging.info("{} has values outside the historical surveyed range boundaries".format(rent_log))
                 temp2['flag'] = 'Range Outlier - Space Level'
@@ -1700,78 +1725,60 @@ class PrepareLogs:
             test_data[prefix + 'prop_avrent'] = round(test_data[prefix + 'prop_avrent'], 2)
             
             temp1 = temp.copy()
-            if self.sector == "ret" and prefix == 'a_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'Y']
-            elif self.sector == "ret" and prefix == 'n_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'N']
-            
-            temp2 = temp1.copy()
-            temp2 = temp2[(temp2['commission_amount_percentage'] < temp2['comm1' + '_l_range']) | (temp2['commission_amount_percentage'] > temp2['comm1' + '_h_range'])]   
-            if len(temp2) > 0:
+            temp1 = temp1[(temp1['commission_amount_percentage'] < temp1['comm1' + '_l_range']) | (temp1['commission_amount_percentage'] > temp1['comm1' + '_h_range'])]   
+            if len(temp1) > 0:
                 logging.info("comm1 has values outside the historical surveyed range boundaries")
-                temp2['flag'] = 'Range Outlier - Space Level'
-                temp2['value'] = temp2['commission_amount_percentage']
-                temp2['column'] = 'comm1'
-                temp2['status'] = 'dropped'
-                self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+                temp1['flag'] = 'Range Outlier - Space Level'
+                temp1['value'] = temp1['commission_amount_percentage']
+                temp1['column'] = 'comm1'
+                temp1['status'] = 'dropped'
+                self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
             
-            temp1['commission_amount_percentage'] = np.where((temp1['commission_amount_percentage'] < temp1['comm1' + '_l_range']) | (temp1['commission_amount_percentage'] > temp1['comm1' + '_h_range']), np.nan, temp1['commission_amount_percentage'])
-            temp1[prefix + 'prop_comm'] = temp1.groupby('id_use')['commission_amount_percentage'].transform('mean')
-            temp1 = temp1.drop_duplicates('id_use')
-            test_data = test_data.join(temp1.set_index('id_use')[[prefix + 'prop_comm']], on='id_use') 
-
-            temp1 = temp.copy()
-            if self.sector == "ret" and prefix == 'a_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'Y']
-            elif self.sector == "ret" and  prefix == 'n_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'N']
+            temp['commission_amount_percentage'] = np.where((temp['commission_amount_percentage'] < temp['comm1' + '_l_range']) | (temp['commission_amount_percentage'] > temp['comm1' + '_h_range']), np.nan, temp['commission_amount_percentage'])
+            temp[prefix + 'prop_comm'] = temp.groupby('id_use')['commission_amount_percentage'].transform('mean')
+            temp = temp.drop_duplicates('id_use')
+            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_comm']], on='id_use')
                 
             if self.sector == "off" or self.sector == "ind" or (self.sector == "ret" and prefix == 'n_'):
                 free = 'free_re'
             elif self.sector == "ret" and prefix == 'a_':
                 free = 'a_freere'
             
-            temp2 = temp1.copy()
-            temp2 = temp2[(temp2['lease_transaction_freerentmonths'] < temp2[free + '_l_range']) | (temp2['lease_transaction_freerentmonths'] > temp2[free + '_h_range'])]
-            if len(temp2) > 0:    
-                logging.info("freerent has values outside the historical surveyed range boundaries")
-                temp2['flag'] = 'Range Outlier - Space Level'
-                temp2['value'] = temp2['lease_transaction_freerentmonths']
-                temp2['column'] = free
-                temp2['status'] = 'dropped'
-                self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
-            
-            temp1['lease_transaction_freerentmonths'] = np.where((temp1['lease_transaction_freerentmonths'] < temp1[free + '_l_range']) | (temp1['lease_transaction_freerentmonths'] > temp1[free + '_h_range']), np.nan, temp1['lease_transaction_freerentmonths'])
-            temp1[prefix + 'prop_free'] = temp1.groupby('id_use')['lease_transaction_freerentmonths'].transform('mean')
-            temp1 = temp1.drop_duplicates('id_use')
-            test_data = test_data.join(temp1.set_index('id_use')[[prefix + 'prop_free']], on='id_use')
-            test_data[prefix + 'prop_free'] = round(test_data[prefix + 'prop_free'], 2)
-            
             temp1 = temp.copy()
-            if self.sector == "ret" and prefix == 'a_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'Y']
-            elif self.sector == "ret" and prefix == 'n_':
-                temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'N']
+            temp1 = temp1[(temp1['lease_transaction_freerentmonths'] < temp1[free + '_l_range']) | (temp1['lease_transaction_freerentmonths'] > temp1[free + '_h_range'])]
+            if len(temp1) > 0:    
+                logging.info("freerent has values outside the historical surveyed range boundaries")
+                temp1['flag'] = 'Range Outlier - Space Level'
+                temp1['value'] = temp1['lease_transaction_freerentmonths']
+                temp1['column'] = free
+                temp1['status'] = 'dropped'
+                self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+            
+            temp['lease_transaction_freerentmonths'] = np.where((temp['lease_transaction_freerentmonths'] < temp[free + '_l_range']) | (temp['lease_transaction_freerentmonths'] > temp[free + '_h_range']), np.nan, temp['lease_transaction_freerentmonths'])
+            temp[prefix + 'prop_free'] = temp.groupby('id_use')['lease_transaction_freerentmonths'].transform('mean')
+            temp = temp.drop_duplicates('id_use')
+            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_free']], on='id_use')
+            test_data[prefix + 'prop_free'] = round(test_data[prefix + 'prop_free'], 2)
                 
             if self.sector == "off" or self.sector == "ind" or (self.sector == "ret" and prefix == 'n_'):
                 ti = 'ti2'
             elif self.sector == "ret" and prefix == 'a_':
                 ti = 'a_ti'
             
-            temp2 = temp1.copy()
-            temp2 = temp2[(temp2['lease_transaction_tenantimprovementallowancepsf_amount'] < temp2[ti + '_l_range']) | (temp2['lease_transaction_tenantimprovementallowancepsf_amount'] > temp2[ti + '_h_range'])]
-            if len(temp2) > 0:    
+            temp1 = temp.copy()
+            temp1 = temp1[(temp1['lease_transaction_tenantimprovementallowancepsf_amount'] < temp1[ti + '_l_range']) | (temp1['lease_transaction_tenantimprovementallowancepsf_amount'] > temp1[ti + '_h_range'])]
+            if len(temp1) > 0:    
                 logging.info("ti has values outside the historical surveyed range boundaries")
-                temp2['flag'] = 'Range Outlier - Space Level'
-                temp2['value'] = temp2['lease_transaction_tenantimprovementallowancepsf_amount']
-                temp2['column'] = ti
-                temp2['status'] = 'dropped'
-                self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+                temp1['flag'] = 'Range Outlier - Space Level'
+                temp1['value'] = temp1['lease_transaction_tenantimprovementallowancepsf_amount']
+                temp1['column'] = ti
+                temp1['status'] = 'dropped'
+                self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
             
-            temp1['lease_transaction_tenantimprovementallowancepsf_amount'] = np.where((temp1['lease_transaction_tenantimprovementallowancepsf_amount'] < temp1[ti + '_l_range']) | (temp1['lease_transaction_tenantimprovementallowancepsf_amount'] > temp1[ti + '_h_range']), np.nan, temp1['lease_transaction_tenantimprovementallowancepsf_amount'])
-            temp1[prefix + 'prop_ti'] = temp1.groupby('id_use')['lease_transaction_tenantimprovementallowancepsf_amount'].transform('mean')
-            temp1 = temp1.drop_duplicates('id_use')
-            test_data = test_data.join(temp1.set_index('id_use')[[prefix + 'prop_ti']], on='id_use') 
+            temp['lease_transaction_tenantimprovementallowancepsf_amount'] = np.where((temp['lease_transaction_tenantimprovementallowancepsf_amount'] < temp[ti + '_l_range']) | (temp['lease_transaction_tenantimprovementallowancepsf_amount'] > temp[ti + '_h_range']), np.nan, temp['lease_transaction_tenantimprovementallowancepsf_amount'])
+            temp[prefix + 'prop_ti'] = temp.groupby('id_use')['lease_transaction_tenantimprovementallowancepsf_amount'].transform('mean')
+            temp = temp.drop_duplicates('id_use')
+            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_ti']], on='id_use') 
             test_data[prefix + 'prop_ti'] = round(test_data[prefix + 'prop_ti'], 2)
             
             if self.sector == "off" or self.sector == "ind":
@@ -1781,20 +1788,20 @@ class PrepareLogs:
             elif self.sector == "ret" and prefix == 'a_':
                 lse = 'anc_term'
             
-            temp2 = temp1.copy()
-            temp2 = temp2[(temp2['lease_transaction_leasetermmonths'] / 12 < temp2[lse + '_l_range']) | (temp2['lease_transaction_leasetermmonths'] / 12 > temp2[lse + '_h_range'])]
-            if len(temp2) > 0:    
+            temp1 = temp.copy()
+            temp1 = temp1[(temp1['lease_transaction_leasetermmonths'] / 12 < temp1[lse + '_l_range']) | (temp1['lease_transaction_leasetermmonths'] / 12 > temp1[lse + '_h_range'])]
+            if len(temp1) > 0:    
                 logging.info("lease term has values outside the historical surveyed range boundaries")
-                temp2['flag'] = 'Range Outlier - Space Level'
-                temp2['value'] = temp2['lease_transaction_leasetermmonths']
-                temp2['column'] = lse
-                temp2['status'] = 'dropped'
-                self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+                temp1['flag'] = 'Range Outlier - Space Level'
+                temp1['value'] = temp1['lease_transaction_leasetermmonths']
+                temp1['column'] = lse
+                temp1['status'] = 'dropped'
+                self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
             
-            temp1['lease_transaction_leasetermmonths'] = np.where((temp1['lease_transaction_leasetermmonths'] / 12 < temp1[lse + '_l_range']) | (temp1['lease_transaction_leasetermmonths'] / 12 > temp1[lse + '_h_range']), np.nan, temp1['lease_transaction_leasetermmonths'])
-            temp1[prefix + 'prop_term'] = temp1.groupby('id_use')['lease_transaction_leasetermmonths'].transform('mean')
-            temp1 = temp1.drop_duplicates('id_use')
-            test_data = test_data.join(temp1.set_index('id_use')[[prefix + 'prop_term']], on='id_use') 
+            temp['lease_transaction_leasetermmonths'] = np.where((temp['lease_transaction_leasetermmonths'] / 12 < temp[lse + '_l_range']) | (temp['lease_transaction_leasetermmonths'] / 12 > temp[lse + '_h_range']), np.nan, temp['lease_transaction_leasetermmonths'])
+            temp[prefix + 'prop_term'] = temp.groupby('id_use')['lease_transaction_leasetermmonths'].transform('mean')
+            temp = temp.drop_duplicates('id_use')
+            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_term']], on='id_use') 
             test_data[prefix + 'prop_term'] = round(test_data[prefix + 'prop_term'] / 12, 2)
             
             if self.sector == "off" or self.sector == "ind":
@@ -1804,106 +1811,113 @@ class PrepareLogs:
             elif self.sector == "ret" and prefix == 'a_':
                 crd = 'ac_rent'
             
-            temp2 = temp1.copy()
-            temp2 = temp2[(temp2['crd_norm'] < temp2[crd + '_l_range']) | (temp2['crd_norm'] > temp2[crd + '_h_range'])]
-            if len(temp2) > 0:    
+            temp1 = temp.copy()
+            temp1 = temp1[(temp1['crd_norm'] < temp1[crd + '_l_range']) | (temp1['crd_norm'] > temp1[crd + '_h_range'])]
+            if len(temp1) > 0:    
                 logging.info("contract rent has values outside the historical surveyed range boundaries")
-                temp2['flag'] = 'Range Outlier - Space Level'
-                temp2['value'] = temp2['crd_norm']
-                temp2['column'] = crd
-                temp2['status'] = 'dropped'
-                self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+                temp1['flag'] = 'Range Outlier - Space Level'
+                temp1['value'] = temp1['crd_norm']
+                temp1['column'] = crd
+                temp1['status'] = 'dropped'
+                self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
 
-                temp1['crd_norm'] = np.where((temp1['crd_norm'] < temp1[crd + '_l_range']) | (temp1['crd_norm'] > temp1[crd + '_h_range']), np.nan, temp1['crd_norm'])
-                temp1[prefix + 'prop_crd'] = temp1.groupby('id_use')['crd_norm'].transform('mean')
-                temp1 = temp1.drop_duplicates('id_use')
-                test_data = test_data.join(temp1.set_index('id_use')[[prefix + 'prop_crd']], on='id_use')
-            else:
-                test_data[prefix + 'prop_crd'] = np.nan
+            temp['crd_norm'] = np.where((temp['crd_norm'] < temp[crd + '_l_range']) | (temp['crd_norm'] > temp[crd + '_h_range']), np.nan, temp['crd_norm'])
+            temp[prefix + 'prop_crd'] = temp.groupby('id_use')['crd_norm'].transform('mean')
+            temp = temp.drop_duplicates('id_use')
+            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_crd']], on='id_use')
             
-        temp1 = temp.copy()
-        if self.sector == "ret":
-            temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'N']
+        if sector == "ret":
+            thresh = 1000
+            test_data['n_avail_unused'] = np.where((test_data['n_size'] > test_data['n_prop_dir_avail']), test_data['n_size'] - test_data['n_prop_dir_avail'], 0)
+            test_data['a_avail_unused'] = np.where((test_data['a_size'] > test_data['a_prop_dir_avail']), test_data['a_size'] - test_data['a_prop_dir_avail'], 0)
+            test_data['n_avail_over'] = np.where((test_data['n_size'] + thresh < test_data['n_prop_dir_avail']), test_data['n_prop_dir_avail'] - test_data['n_size'], 0)
+            test_data['a_avail_over'] = np.where((test_data['a_size'] + thresh < test_data['a_prop_dir_avail']), test_data['a_prop_dir_avail'] - test_data['a_size'], 0)
+
+            test_data['n_prop_dir_avail'] = np.where((test_data['n_size'] + thresh >= test_data['n_prop_dir_avail']) & (test_data['n_size'] < test_data['n_prop_dir_avail']), test_data['n_size'], test_data['n_prop_dir_avail'])
+            test_data['a_prop_dir_avail'] = np.where((test_data['a_size'] + thresh >= test_data['a_prop_dir_avail']) & (test_data['a_size'] < test_data['a_prop_dir_avail']), test_data['a_size'], test_data['a_prop_dir_avail'])
+
+            test_data['a_prop_dir_avail'] = np.where((test_data['has_mix']) & (test_data['n_avail_over'] > 0), test_data['a_prop_dir_avail'] + test_data[['n_avail_over', 'a_avail_unused']].min(1), test_data['a_prop_dir_avail'])
+            test_data['n_prop_dir_avail'] = np.where((test_data['has_mix']) & (test_data['n_avail_over'] > 0), test_data['n_prop_dir_avail'] - test_data[['n_avail_over', 'a_avail_unused']].min(1), test_data['n_prop_dir_avail'])
+            test_data['n_prop_dir_avail'] = np.where((test_data['has_mix']) & (test_data['a_avail_over'] > 0), test_data['n_prop_dir_avail'] + test_data[['a_avail_over', 'n_avail_unused']].min(1), test_data['n_prop_dir_avail'])
+            test_data['a_prop_dir_avail'] = np.where((test_data['has_mix']) & (test_data['a_avail_over'] > 0), test_data['a_prop_dir_avail'] - test_data[['a_avail_over', 'n_avail_unused']].min(1), test_data['a_prop_dir_avail'])
+        
+        temp = test_data.copy()
+        if sector == "ret":
+            # Opex, Tax, and Cam are collected at the property level in RDMA, so filter by property level anchor status
+            temp = temp[temp['retail_property_is_anchor_flag'] == 'N']
 
         if prefix != 'a_':
-            temp1['mr_diff'] = (temp1['opex_norm'] - temp1['op_exp_mr']) / temp1['op_exp_mr']
+            temp['mr_diff'] = (temp['opex_norm'] - temp['op_exp_mr']) / temp['op_exp_mr']
         else:
             temp['mr_diff'] = np.inf
         
-        temp2 = temp1.copy()
-        temp2 = temp2[((temp2['opex_norm'] < temp2['op_exp' + '_l_range']) | (temp2['opex_norm'] > temp2['op_exp' + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True))]
-        if len(temp2) > 0:  
+        temp1 = temp.copy()
+        temp1 = temp1[((temp1['opex_norm'] < temp1['op_exp' + '_l_range']) | (temp1['opex_norm'] > temp1['op_exp' + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True))]
+        if len(temp1) > 0:  
             logging.info("opex has values outside the historical surveyed range boundaries")
-            temp2['flag'] = 'Range Outlier - Space Level'
-            temp2['value'] = temp2['opex_norm']
-            temp2['column'] = 'op_exp'
-            temp2['status'] = 'dropped'
-            self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+            temp1['flag'] = 'Range Outlier - Space Level'
+            temp1['value'] = temp1['opex_norm']
+            temp1['column'] = 'op_exp'
+            temp1['status'] = 'dropped'
+            self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
 
-        temp1['opex_norm'] = np.where(((temp1['opex_norm'] < temp1['op_exp' + '_l_range']) | (temp1['opex_norm'] > temp1['op_exp' + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True)), np.nan, temp1['opex_norm'])
-        temp1['prop_opex'] = temp1.groupby('id_use')['opex_norm'].transform('mean')
-        temp1 = temp1.drop_duplicates('id_use')
-        test_data = test_data.join(temp1.set_index('id_use')[['prop_opex']], on='id_use')
+        temp['opex_norm'] = np.where(((temp['opex_norm'] < temp['op_exp' + '_l_range']) | (temp['opex_norm'] > temp['op_exp' + '_h_range'])) & ((abs(temp['mr_diff']) > 0.02) | (temp['mr_diff'].isnull() == True)), np.nan, temp['opex_norm'])
+        temp['prop_opex'] = temp.groupby('id_use')['opex_norm'].transform('mean')
+        temp = temp.drop_duplicates('id_use')
+        test_data = test_data.join(temp.set_index('id_use')[['prop_opex']], on='id_use')
         test_data['prop_opex'] = round(test_data['prop_opex'], 2)
-
-        temp1 = temp.copy()
-        if self.sector == "ret":
-            temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'N']
         
         if prefix != 'a_':
-            temp1['mr_diff'] = (temp1['retax_norm'] - temp1['re_tax_mr']) / temp1['re_tax_mr']
+            temp['mr_diff'] = (temp['retax_norm'] - temp['re_tax_mr']) / temp['re_tax_mr']
         else:
             temp['mr_diff'] = np.inf
         
-        temp2 = temp1.copy()
-        temp2 = temp2[((temp2['retax_norm'] < temp2['re_tax' + '_l_range']) | (temp2['retax_norm'] > temp2['re_tax' + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True))]
-        if len(temp2) > 0:
+        temp1 = temp.copy()
+        temp1 = temp1[((temp1['retax_norm'] < temp1['re_tax' + '_l_range']) | (temp1['retax_norm'] > temp1['re_tax' + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True))]
+        if len(temp1) > 0:
             logging.info("retax has values outside the historical surveyed range boundaries")
-            temp2['flag'] = 'Range Outlier - Space Level'
-            temp2['value'] = temp2['retax_norm']
-            temp2['column'] = 're_tax'
-            temp2['status'] = 'dropped'
-            self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+            temp1['flag'] = 'Range Outlier - Space Level'
+            temp1['value'] = temp1['retax_norm']
+            temp1['column'] = 're_tax'
+            temp1['status'] = 'dropped'
+            self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
         
-        temp1['retax_norm'] = np.where(((temp1['retax_norm'] < temp1['re_tax' + '_l_range']) | (temp1['retax_norm'] > temp1['re_tax' + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True)), np.nan, temp1['retax_norm'])
-        temp1['prop_retax'] = temp1.groupby('id_use')['retax_norm'].transform('mean')
-        temp1 = temp1.drop_duplicates('id_use')
-        test_data = test_data.join(temp1.set_index('id_use')[['prop_retax']], on='id_use')
+        temp['retax_norm'] = np.where(((temp['retax_norm'] < temp['re_tax' + '_l_range']) | (temp['retax_norm'] > temp['re_tax' + '_h_range'])) & ((abs(temp['mr_diff']) > 0.02) | (temp['mr_diff'].isnull() == True)), np.nan, temp['retax_norm'])
+        temp['prop_retax'] = temp.groupby('id_use')['retax_norm'].transform('mean')
+        temp = temp.drop_duplicates('id_use')
+        test_data = test_data.join(temp.set_index('id_use')[['prop_retax']], on='id_use')
         test_data['prop_retax'] = round(test_data['prop_retax'], 2)
 
 
-        if self.sector == "ret":
+        if self.sector == "ret" and prefix == "n_":
             temp1 = temp.copy()
-            temp1 = temp1[temp1['retail_property_is_anchor_flag'] == 'N']
-            
-            temp2 = temp1.copy()
-            temp2 = temp2[(temp2['cam_norm'] < temp2['cam' + '_l_range']) | (temp2['cam_norm'] > temp2['cam' + '_h_range'])]
-            if len(temp2) > 0:
+            temp1 = temp1[(temp1['cam_norm'] < temp1['cam' + '_l_range']) | (temp1['cam_norm'] > temp1['cam' + '_h_range'])]
+            if len(temp1) > 0:
                 logging.info("cam has values outside the historical surveyed range boundaries")
-                temp2['flag'] = 'Range Outlier - Space Level'
-                temp2['value'] = temp2['cam_norm']
-                temp2['column'] = 'cam'
-                temp2['status'] = 'dropped'
-                self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
+                temp1['flag'] = 'Range Outlier - Space Level'
+                temp1['value'] = temp1['cam_norm']
+                temp1['column'] = 'cam'
+                temp1['status'] = 'dropped'
+                self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
             
-            temp1['cam_norm'] = np.where((temp1['cam_norm'] < temp1['cam' + '_l_range']) | (temp1['cam_norm'] > temp1['cam' + '_h_range']), np.nan, temp1['cam_norm'])
-            temp1['prop_cam'] = temp1.groupby('id_use')['cam_norm'].transform('mean')
-            temp1 = temp1.drop_duplicates('id_use')
-            test_data = test_data.join(temp1.set_index('id_use')[['prop_cam']], on='id_use')
+            temp['cam_norm'] = np.where((temp['cam_norm'] < temp['cam' + '_l_range']) | (temp['cam_norm'] > temp['cam' + '_h_range']), np.nan, temp['cam_norm'])
+            temp['prop_cam'] = temp.groupby('id_use')['cam_norm'].transform('mean')
+            temp = temp.drop_duplicates('id_use')
+            test_data = test_data.join(temp.set_index('id_use')[['prop_cam']], on='id_use')
             test_data['prop_cam'] = round(test_data['prop_cam'], 2)
         
         for basis in ['N', 'G']:
-            temp1 = test_data.copy()
-            temp1['count_obs'] = temp1.groupby('id_use')['rent_basis'].transform('count')
-            temp1['count_obs'] = temp1['count_obs'].fillna(0)
+            temp = test_data.copy()
+            temp['count_obs'] = temp.groupby('id_use')['rent_basis'].transform('count')
+            temp['count_obs'] = temp['count_obs'].fillna(0)
             if self.sector == "ret":
-                temp1 = temp1[(temp1['a_prop_avrent'].isnull() == False) | (temp1['n_prop_avrent'].isnull() == False) | (temp1['count_obs'] == 0)]
+                temp = temp[(temp['a_prop_avrent'].isnull() == False) | (temp['n_prop_avrent'].isnull() == False) | (temp['count_obs'] == 0)]
             else:
-                temp1 = temp1[(temp1['prop_avrent'].isnull() == False) | (temp1['count_obs'] == 0)]
-            temp1 = temp1[temp1['rent_basis'] == basis]
-            temp1['count_term_' + basis] = temp1.groupby('id_use')['rent_basis'].transform('count')
-            temp1 = temp1.drop_duplicates('id_use')
-            test_data = test_data.join(temp1.set_index('id_use')[['count_term_' + basis]], on='id_use')
+                temp = temp[(temp['prop_avrent'].isnull() == False) | (temp['count_obs'] == 0)]
+            temp = temp[temp['rent_basis'] == basis]
+            temp['count_term_' + basis] = temp.groupby('id_use')['rent_basis'].transform('count')
+            temp = temp.drop_duplicates('id_use')
+            test_data = test_data.join(temp.set_index('id_use')[['count_term_' + basis]], on='id_use')
             test_data['count_term_' + basis] = test_data['count_term_' + basis].fillna(0)
         test_data['max_term'] = np.where((test_data['count_term_N'] > test_data['count_term_G']), 'N', '')
         test_data['max_term'] = np.where((test_data['count_term_G'] > test_data['count_term_N']), 'G', test_data['max_term'])
@@ -1922,16 +1936,7 @@ class PrepareLogs:
         mult_prop_link = mult_prop_link[['property_source_id', 'id_use']]
         mult_prop_link.to_csv('{}/OutputFiles/{}/logic_logs/mult_prop_link_{}m{}.csv'.format(self.home, self.sector, self.curryr, self.currmon), index=False)
         test_data = test_data.drop_duplicates('id_use')
-        
-        if self.sector == "off" or self.sector == "ind":
-            test_data['tot_size'] = np.where(((test_data['tot_size'].isnull() == True) | (test_data['tot_size'] == 0)) & (test_data['log_tot_size'].isnull() == False) & (test_data['log_tot_size'] > test_data['prop_dir_avail'] + test_data['prop_sub_avail']), test_data['log_tot_size'], test_data['tot_size'])
-            test_data['size_method'] = np.where(((test_data['tot_size'].isnull() == True) | (test_data['tot_size'] == 0)) & (test_data['log_tot_size'].isnull() == False) & (test_data['log_tot_size'] > test_data['prop_dir_avail'] + test_data['prop_sub_avail']), 'REIS Size SQFT', test_data['size_method'])
-        elif self.sector == "ret":
-            test_data['tot_size'] = np.where(((test_data['tot_size'].isnull() == True) | (test_data['tot_size'] == 0)) & (test_data['log_tot_size'].isnull() == False) & (test_data['log_n_size'] > test_data['n_prop_dir_avail']) & (test_data['log_a_size'] > test_data['a_prop_dir_avail']), test_data['log_tot_size'], test_data['tot_size'])
-            test_data['n_size'] = np.where(((test_data['tot_size'].isnull() == True) | (test_data['tot_size'] == 0)) & (test_data['log_tot_size'].isnull() == False) & (test_data['log_n_size'] > test_data['n_prop_dir_avail']) & (test_data['log_a_size'] > test_data['a_prop_dir_avail']), test_data['log_n_size'], test_data['n_size'])
-            test_data['a_size'] = np.where(((test_data['tot_size'].isnull() == True) | (test_data['tot_size'] == 0)) & (test_data['log_tot_size'].isnull() == False) & (test_data['log_n_size'] > test_data['n_prop_dir_avail']) & (test_data['log_a_size'] > test_data['a_prop_dir_avail']), test_data['log_a_size'], test_data['a_size'])
-            test_data['size_method'] = np.where(((test_data['tot_size'].isnull() == True) | (test_data['tot_size'] == 0)) & (test_data['log_tot_size'].isnull() == False) & (test_data['log_n_size'] > test_data['n_prop_dir_avail']) & (test_data['log_a_size'] > test_data['a_prop_dir_avail']), 'REIS Size SQFT', test_data['size_method'])
-        
+    
         logging.info('\n')
         
         return test_data, mult_prop_link
@@ -2036,8 +2041,8 @@ class PrepareLogs:
         test_data['comm2'] = np.nan
         
         if self.sector == "ind":
-            test_data['ind_size'] = np.where((test_data['tot_size'] == test_data['space_industrial_size_sf']), test_data['space_industrial_size_sf'], test_data['tot_size'])
-            test_data['off_size'] = np.where((test_data['tot_size'] == test_data['space_industrial_size_sf']), test_data['space_office_size_sf'], np.nan)
+            #test_data['off_size'] = np.where((test_data['building_office_size_sf'].isnull() == False), test_data['building_office_size_sf'], np.nan)
+            test_data['off_size'] = np.nan
             
         for key, value in self.rename_dict.items():
             test_data.rename(columns={value: key}, inplace=True)
