@@ -341,12 +341,13 @@ def get_dicts():
 
 sectors = ['off', 'ind', 'ret']
 curryr = 2022
-currmon = 4
+currmon = 5
 legacy_only = True # set to True if only want to keep properties that were in the legacy foundation database or are within the NC rebench window of curryr - 3
 include_cons = False # Set to True if want to include Catylist non legacy REIS props with a completion year within the curryr - 3 construction rebench window, even if legacy_only is True
 use_rc_id = True # set to True if rc_id should be used to link properties in the event that there is no live link from ER
 use_reis_sub = True # set to True if we should take the log met/sub values in the case of a discrepancy to what is given in the view
 use_mult = True # set to True if we should choose the first option for a REIS id link  in the case of multiple live linkages, instead of dropping cases where this occurs
+live_load = False
 
 logger = logging.getLogger()
 
@@ -382,7 +383,7 @@ try:
     
     # Instantiate the PrepareLogs class
     prepLogs = PrepareLogs(sector_map, space_map, legacy_only, include_cons, use_rc_id, 
-                           use_reis_sub, use_mult, curryr, currmon)
+                           use_reis_sub, use_mult, curryr, currmon, live_load)
 
     for sector in sectors:
         # Load the incrementals data
@@ -400,7 +401,6 @@ try:
             test_data = test_data_in_filt.copy()
             test_data = test_data.rename(columns={'reis_sector': 'catylist_sector'})
 
-            
             # Read in the individual metro log files and append to one aggregated dataframe
             log = prepLogs.read_logs()
             for x in ['listed_space_id', 'leg', 'property_source_id', 'total_size']:
@@ -429,6 +429,9 @@ try:
                 
                 # Clean the text field that holds some of the commission data
                 test_data = prepLogs.clean_comm(test_data)
+                
+                # Clean the text field that holds some of the lease terms data
+                test_data = prepLogs.clean_lease_terms(test_data)
                 
                 # Test to see if there are duplicated addresses across unique Catylist IDs
                 prepLogs.check_duplicate_catylist(test_data)

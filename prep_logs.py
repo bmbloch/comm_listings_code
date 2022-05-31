@@ -31,8 +31,6 @@ import boto3
 import base64
 from botocore.exceptions import ClientError
 import json
-#!pip install redshift_connector
-import redshift_connector
 
 def get_home():
     if os.name == "nt": return "//odin/reisadmin/central/square/data/zzz-bb-test2/python/catylist_snapshots"
@@ -42,7 +40,7 @@ def get_home():
 class PrepareLogs:
     
     def __init__(self, sector_map, space_map, legacy_only, include_cons, use_rc_id, 
-                 use_reis_sub, use_mult, curryr, currmon):
+                 use_reis_sub, use_mult, curryr, currmon, live_load):
 
         self.home = get_home()
         self.legacy_only = legacy_only
@@ -54,6 +52,7 @@ class PrepareLogs:
         self.space_map = space_map
         self.curryr = curryr
         self.currmon = currmon
+        self.live_load = live_load
         
     def get_secret(self):
     
@@ -107,7 +106,9 @@ class PrepareLogs:
 
     def load_incrementals(self, sector, type_dict_all, rename_dict_all, consistency_dict, load, test_data_in=pd.DataFrame()):
         if load:
-            if self.home[0:2] == 's3':
+            if self.home[0:2] == 's3' and self.live_load:
+                #!pip install redshift_connector
+                import redshift_connector
                 logging.info('Querying View...')
                 logging.info('\n')
                 credentials = self.get_secret()
@@ -126,6 +127,8 @@ class PrepareLogs:
                 test_data_in.replace([None], np.nan, inplace=True)
 
             else:
+                if self.home[0:2] == 's3':
+                    print('This is not a live load!!!')
                 test_data_in = pd.read_csv('{}/InputFiles/listings_{}m{}.csv'.format(self.home, self.curryr, self.currmon), na_values= "", keep_default_na = False, dtype={'property_geo_subid_list': 'object'})
             logging.info("Incrementals data has {:,} unique listings and {:,} unique properties".format(len(test_data_in.drop_duplicates('listed_space_id')), len(test_data_in.drop_duplicates('property_source_id'))))
             logging.info('\n')
@@ -221,6 +224,10 @@ class PrepareLogs:
         for col in ['lease_asking_rent_min_amt', 'lease_asking_rent_max_amt', 'lease_transaction_rent_price_min_amt', 'lease_transaction_rent_price_max_amt']:
             filt[col].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))) & (filt['rent_in_month'] == False), np.nan, inplace=True)
             filt[col].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))) & (filt['rent_in_month'] == False), np.nan, inplace=True)
+        for col in ['occupancy_expenses_amount_amount', 'lease_or_property_expenses_amount', 'property_real_estate_tax_amt', 'lease_transaction_freerentmonths', 'commission_description', 'commission_amount_percentage', 'lease_transaction_tenantimprovementallowancepsf_amount', 'occupancy_cam_amount_amount', 'lease_terms', 'lease_transaction_leasetermmonths']:
+            filt[col].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))), np.nan, inplace=True)
+            filt[col].mask((filt['surv_date'].gt("{}/{}/{}".format(self.currmon, '15', self.curryr))), np.nan, inplace=True)
+        
         
         filt['surv_yr'].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))), self.curryr, inplace=True)
         filt['surv_qtr'].mask((filt['surv_date'].lt("{}/{}/{}".format(prior_mon, '16', prior_yr))), np.ceil(self.currmon / 3), inplace=True)
@@ -387,35 +394,27 @@ class PrepareLogs:
         
     def handle_case(self, test_data):
     
-        test_data['buildings_building_status'] = test_data['buildings_building_status'].str.lower().str.title()
-        test_data['buildings_building_status'] = np.where((test_data['buildings_building_status'].isnull() == True), '', test_data['buildings_building_status'])
-        test_data['availability_status'] = test_data['availability_status'].str.lower()
-        test_data['occupancy_type'] = test_data['occupancy_type'].str.lower()
-        test_data['occupancy_type'] = np.where((test_data['occupancy_type'].isnull() == True), '', test_data['occupancy_type'])
-        test_data['category'] = test_data['category'].str.lower()
-        test_data['subcategory'] = test_data['subcategory'].str.lower()
-        test_data['space_category'] = test_data['space_category'].str.lower()
-        test_data['space_category'] = np.where((test_data['space_category'].isnull() == True), '', test_data['space_category'])
-        test_data['retail_property_is_anchor_flag'] = np.where((test_data['retail_property_is_anchor_flag'].isnull() == True), '', test_data['retail_property_is_anchor_flag'])
-        test_data['property_source_id'] = np.where((test_data['property_source_id'].isnull() == True), '', test_data['property_source_id'])
-        test_data['property_reis_rc_id'] = np.where((test_data['property_reis_rc_id'].isnull() == True), '', test_data['property_reis_rc_id'])
         test_data['property_reis_rc_id'] = np.where(test_data['property_reis_rc_id'] == 'None', '', test_data['property_reis_rc_id'])
         test_data['property_reis_rc_id'] = test_data['property_reis_rc_id'].str.replace('-', '')
-        test_data['foundation_ids_list'] = np.where(test_data['foundation_ids_list'].isnull() == True, '', test_data['foundation_ids_list'])
-        test_data['catylist_sector'] = np.where((test_data['catylist_sector'].isnull() == True), '', test_data['catylist_sector'])
-        test_data['property_geo_msa_list'] = np.where((test_data['property_geo_msa_list'].isnull() == True), '', test_data['property_geo_msa_list'])
-        test_data['property_geo_subid_list'] = np.where((test_data['property_geo_subid_list'].isnull() == True), '', test_data['property_geo_subid_list'])
-        test_data['lease_asking_rent_price_period'] = test_data['lease_asking_rent_price_period'].str.lower()
-        test_data['lease_asking_rent_price_size'] = test_data['lease_asking_rent_price_size'].str.lower()
-        test_data['occupancy_expenses_period'] = test_data['occupancy_expenses_period'].str.lower()
-        test_data['occupancy_expenses_size'] = test_data['occupancy_expenses_size'].str.lower()
-        test_data['occupancy_cam_period'] = test_data['occupancy_cam_period'].str.lower()
-        test_data['occupancy_cam_size'] = test_data['occupancy_cam_size'].str.lower()
-        test_data['lease_transaction_rent_price_period'] = test_data['lease_transaction_rent_price_period'].str.lower()
-        test_data['lease_transaction_rent_price_size'] = test_data['lease_transaction_rent_price_size'].str.lower()
-        test_data['street_address'] = np.where((test_data['street_address'].isnull() == True), '', test_data['street_address'])
-        test_data['street_address'] = test_data['street_address'].str.lower()
-        test_data['commission_description'] = np.where((test_data['commission_description'].isnull() == True),'', test_data['commission_description'])
+
+        to_lower = ['buildings_building_status', 'availability_status', 'occupancy_type', 'category', 'subcategory',
+                   'space_category', 'lease_asking_rent_price_period', 'lease_asking_rent_price_size', 'occupancy_expenses_period',
+                   'occupancy_expenses_size', 'occupancy_cam_period', 'occupancy_cam_size', 'lease_transaction_rent_price_period', 
+                   'lease_transaction_rent_price_size', 'street_address', 'lease_terms', 'space_floor', 'space_suite', 
+                   'listed_space_title']
+        
+        for col in to_lower:
+            test_data[col] = test_data[col].str.lower()
+        
+        null_to_string = ['buildings_building_status', 'occupancy_type', 'category', 'subcategory', 'space_category',
+                          'retail_property_is_anchor_flag', 'property_source_id', 'property_reis_rc_id',
+                          'foundation_ids_list', 'catylist_sector', 'property_geo_msa_list', 
+                          'property_geo_subid_list', 'street_address', 'commission_description', 'lease_terms', 
+                          'space_floor', 'space_suite', 'listed_space_title']
+        
+        for col in null_to_string:
+            test_data[col] = np.where((test_data[col].isnull() == True), '', test_data[col])
+        
         
         test_data['property_source_id'] = test_data['property_source_id'].astype(str)
         test_data['property_reis_rc_id'] = test_data['property_reis_rc_id'].astype(str)
@@ -436,6 +435,9 @@ class PrepareLogs:
         
         test_data = test_data.drop_duplicates('listed_space_id')
         
+        # If a property has retail spaces but the category is not Retail, set the anchor flag to N if it is null
+        test_data['retail_property_is_anchor_flag'] = np.where((test_data['category'] != 'retail') & (test_data['retail_property_is_anchor_flag'] == '') & (test_data['space_category'] == 'retail'), 'N', test_data['retail_property_is_anchor_flag'])
+        
         test_data['mult_rc_tag'] = False
         test_data['count'] = test_data.groupby('property_reis_rc_id')['property_source_id'].transform('nunique')
         test_data['businesspark_temp'] = np.where((test_data['businesspark'] == ''), np.nan, test_data['businesspark'])
@@ -444,7 +446,7 @@ class PrepareLogs:
         test_data['count_bp'] = test_data.groupby('property_reis_rc_id')['businesspark_temp'].transform('nunique')
         temp = test_data.copy()
         temp = temp[(temp['count'] > 1) & ((temp['count_bp'] > 1) | (temp['businesspark'] == '')) & (temp['property_reis_rc_id'] != '') & (temp['property_reis_rc_id'].str[0] == self.sector_map[self.sector]['prefix'])]
-        if len(temp) > 0:
+        if len(temp) > 0 and self.use_rc_id:
             if self.first:
                 logging.info("There are rc_ids that are linked to more than one unique Catylist property")
                 logging.info("\n")
@@ -454,7 +456,8 @@ class PrepareLogs:
             self.logic_log = self.logic_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'flag', 'c_value', 'status']])
             if self.legacy_only:
                 test_data['mult_rc_tag'] = np.where((test_data['count'] > 1) & ((test_data['count_bp'] > 1) | (test_data['businesspark'] == '')) & (temp['property_reis_rc_id'] != '') & (temp['property_reis_rc_id'].str[0] == self.sector_map[self.sector]['prefix']), True, test_data['mult_rc_tag'])
-        test_data['property_reis_rc_id'] = np.where((test_data['count'] > 1) & ((test_data['count_bp'] > 1) | (test_data['businesspark'] == '')) & (test_data['property_reis_rc_id'] != ''), '', test_data['property_reis_rc_id'])
+        if self.use_rc_id:
+            test_data['property_reis_rc_id'] = np.where((test_data['count'] > 1) & ((test_data['count_bp'] > 1) | (test_data['businesspark'] == '')) & (test_data['property_reis_rc_id'] != ''), '', test_data['property_reis_rc_id'])
         
         test_data['avail_date_dt'] = pd.to_datetime(test_data['availability_availabledate'], errors='coerce')
         test_data['vac_date_dt'] = pd.to_datetime(test_data['availability_vacantdate'], errors='coerce')
@@ -536,6 +539,35 @@ class PrepareLogs:
         
         test_data['commission_amount_percentage'] = np.where((test_data['commission_amount_percentage'].isnull() == False), test_data['commission_amount_percentage'], test_data['comm_cleaned'])
 
+        return test_data
+    
+    def clean_lease_terms(self, test_data):
+        
+        test_data['lease_terms'] = np.where((test_data['lease_terms'].isnull() == True), '', test_data['lease_terms'])
+        test_data['lease_terms'] = test_data['lease_terms'].str.lower().str.strip()
+        test_data['lease_terms'] = test_data['lease_terms'].str.replace('to', '-')
+        test_data['lease_terms'] = test_data['lease_terms'].str.replace(' -', '-').str.replace('- ', '-').str.replace('+', '').str.replace('minimum', '').str.replace('up to', '')
+        test_data['lease_terms'] = test_data['lease_terms'].str.strip()
+        test_data['part1'] = np.where((test_data['lease_terms'].str.split('-').str[0].str.strip().str.isdigit()), test_data['lease_terms'].str.split('-').str[0].str.strip(), np.nan)
+        test_data['part2'] = np.where((test_data['lease_terms'].str.split('-').str[-1].str.split(' ').str[0].str.strip().str.isdigit()), test_data['lease_terms'].str.split('-').str[-1].str.split(' ').str[0].str.strip(), np.nan)
+        test_data['part2'] = np.where((test_data['lease_terms'].str.split('-').str[-1].str.split(' ').str[0].str.strip().str[-3:] == 'yrs') & (test_data['lease_terms'].str.split('-').str[-1].str.split(' ').str[0].str.strip().str[:-3].str.isdigit()), test_data['lease_terms'].str.split('-').str[-1].str.split(' ').str[0].str.strip().str[:-3], test_data['part2'])
+        test_data['lease_terms_cleaned'] = np.nan
+        test_data['lease_terms_cleaned'] = np.where((test_data['part1'].isnull() == False) & (test_data['part2'].isnull() == False) & (test_data['lease_terms'].str.contains('month') == False), (test_data['part1'].astype(float) + test_data['part2'].astype(float)) / 2, test_data['lease_terms_cleaned'])
+        test_data['lease_terms_cleaned'] = np.where((test_data['part1'].isnull() == False) & (test_data['part2'].isnull() == False) & (test_data['lease_terms'].str.contains('month') == True), ((test_data['part1'].astype(float)/ 12) + (test_data['part2'].astype(float) / 12)) / 2, test_data['lease_terms_cleaned'])
+        test_data['lease_terms_cleaned'] = np.where((test_data['part1'].isnull() == False) & (test_data['part2'].isnull() == False) & (test_data['lease_terms_cleaned'] > 25) & (test_data['lease_terms'].str.contains('year') == False) & (test_data['lease_terms'].str.contains('yrs') == False), ((test_data['part1'].astype(float)/ 12) + (test_data['part2'].astype(float) / 12)) / 2, test_data['lease_terms_cleaned'])
+
+        test_data['part1'] = np.where((test_data['lease_terms'].str.split(' ').str[0].str.isdigit()), test_data['lease_terms'].str.split(' ').str[0], np.nan)
+        test_data['part1'] = np.where((test_data['lease_terms'].str.split(' ').str[0].str[:-3].str.isdigit()) & (test_data['lease_terms'].str[-3:] == 'yrs'), test_data['lease_terms'].str.split(' ').str[0].str[:-3], test_data['part1'])
+        test_data['part2'] = True
+        test_data['lease_terms_cleaned'] = np.where((test_data['lease_terms_cleaned'].isnull() == True) & (test_data['part1'].isnull() == False) & (test_data['part2']) & (test_data['lease_terms'].str.contains('month') == False), test_data['part1'].astype(float), test_data['lease_terms_cleaned'])
+        test_data['lease_terms_cleaned'] = np.where((test_data['lease_terms_cleaned'].isnull() == True) & (test_data['part1'].isnull() == False) & (test_data['part2']) & (test_data['lease_terms'].str.contains('month') == True), test_data['part1'].astype(float) / 12, test_data['lease_terms_cleaned'])
+        test_data['lease_terms_cleaned'] = np.where((test_data['part1'].isnull() == False) & (test_data['part2']) & (test_data['lease_terms_cleaned'] > 25) & (test_data['lease_terms'].str.contains('year') == False) & (test_data['lease_terms'].str.contains('yrs') == False), (test_data['part1'].astype(float)/ 12), test_data['lease_terms_cleaned'])
+        test_data['lease_terms_cleaned'] = np.where((test_data['part1'].isnull() == False) & (test_data['part2']) & (test_data['lease_terms'].str.contains('month') == True) & ((test_data['lease_terms'].str.contains('year') == True) | (test_data['lease_terms'].str.contains('yrs') == True)), np.nan, test_data['lease_terms_cleaned'])
+
+        test_data['lease_terms_cleaned'] = np.where((test_data['lease_sublease'] == 1) | (test_data['lease_terms'].str.contains('sub') == True) | (test_data['lease_terms_cleaned'] < 0.25) | (test_data['lease_terms'].str.contains('ground lease') == True), np.nan, test_data['lease_terms_cleaned'])
+    
+        test_data['lease_transaction_leasetermmonths'] = np.where((test_data['lease_transaction_leasetermmonths'].isnull() == False), test_data['lease_transaction_leasetermmonths'], test_data['lease_terms_cleaned'])
+    
         return test_data
     
     def check_duplicate_catylist(self, test_data):
@@ -955,11 +987,11 @@ class PrepareLogs:
            'ret': ['retail']}
         
         test_data['count'] = test_data.groupby('id_use')['property_source_id'].transform('nunique')
-        test_data['not_complete'] = np.where((test_data['count'] > 1) & (~test_data['buildings_building_status'].isin(['Existing', ''])), 1, 0)
+        test_data['not_complete'] = np.where((test_data['count'] > 1) & (~test_data['buildings_building_status'].isin(['existing', ''])), 1, 0)
         temp = test_data.copy()
         temp = temp[(temp['not_complete'] == 1)]
         if len(temp) > 0:
-            temp['reason'] = 'REIS ID linked to multiple Catylist properties, and Catylist property does not have Existing status'
+            temp['reason'] = 'REIS ID linked to multiple Catylist properties, and Catylist property does not have existing status'
             self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason']].drop_duplicates('property_source_id'), ignore_index=True)
         test_data = test_data[test_data['not_complete'] == 0]
         test_data['count'] = test_data.groupby('id_use')['property_source_id'].transform('nunique')
@@ -1061,7 +1093,7 @@ class PrepareLogs:
             id_check = id_check.drop_duplicates('id_use').append(temp[['id_use', 'property_source_id', 'foundation_property_id', 'foundation_ids_list', 'flag']])
         temp = test_data.copy()
         temp = temp[(temp['foundation_ids_list'] == '') & (temp['property_reis_rc_id'] == '')]
-        if len(temp) > 0:
+        if len(temp) > 0 and self.use_rc_id:
             if self.legacy_only:
                 temp1 = temp.copy()
                 temp1 = temp1[(temp1['mult_rc_tag']) & (temp1['foundation_property_id'] == '')]
@@ -1117,7 +1149,7 @@ class PrepareLogs:
         test_data['id_use'] = test_data['id_use'].astype(str)
         
         temp = test_data.copy()
-        temp = temp[(temp['buildings_building_status'] != 'Existing') & (temp['buildings_building_status'] != '') & (temp['leg'])]
+        temp = temp[(temp['buildings_building_status'] != 'existing') & (temp['buildings_building_status'] != '') & (temp['leg'])]
         if len(temp) > 0:
             temp['flag'] = 'REIS building complete, Catylist building UC'
             temp['status'] = 'dropped'
@@ -1223,12 +1255,12 @@ class PrepareLogs:
     def select_comp(self, test_data):
         
         temp = test_data.copy()
-        temp = temp[(temp['buildings_building_status'] != 'Existing') & ((temp['buildings_building_status'] != '') | (temp['leg'] == False))]
+        temp = temp[(temp['buildings_building_status'] != 'existing') & ((temp['buildings_building_status'] != '') | (temp['leg'] == False))]
         if len(temp) > 0:
             temp['reason'] = 'building not complete'
             self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason', 'space_category']].drop_duplicates('property_source_id'), ignore_index=True)
         
-        test_data = test_data[(test_data['buildings_building_status'] == 'Existing') | ((test_data['buildings_building_status'] == '') & (test_data['leg']))]
+        test_data = test_data[(test_data['buildings_building_status'] == 'existing') | ((test_data['buildings_building_status'] == '') & (test_data['leg']))]
         
         temp = test_data.copy()
         temp = temp[temp['category'] == 'land']
@@ -1237,7 +1269,7 @@ class PrepareLogs:
             self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason', 'space_category']].drop_duplicates('property_source_id'), ignore_index=True)
         test_data = test_data[test_data['category'] != 'land']
         
-        # According to Allen Benson, property level owner occupied tags should only be invalidated if the building level value is marked as OO
+        # According to Allen Benson, listing level owner occupied tags should only be invalidated if the property level value is marked as OO
         test_data['count'] = test_data.groupby('property_source_id')['listed_space_id'].transform('count')
         test_data['count_owned'] = test_data.groupby('property_source_id')['availability_owneroccupied'].transform('sum')
         test_data['count_owned_null'] = test_data['availability_owneroccupied'].isnull()
@@ -1247,10 +1279,10 @@ class PrepareLogs:
         if len(temp) > 0:
             temp['reason'] = 'C prop owner occupied'
             self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason', 'space_category']].drop_duplicates('property_source_id'), ignore_index=True)
-        test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id').rename(columns={'reason': 'drop_this'})[['drop_this']], on='property_source_id')
-        test_data = test_data[(test_data['drop_this'].isnull() == True)]
-        test_data = test_data.drop(['drop_this'],axis=1)
-        
+            test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id').rename(columns={'reason': 'drop_this'})[['drop_this']], on='property_source_id')
+            test_data = test_data[(test_data['drop_this'].isnull() == True)]
+            test_data = test_data.drop(['drop_this'],axis=1)
+
         if self.sector == "off":
             temp = test_data.copy()
             temp = temp[~(temp['subcategory'].isin(['general', 'corporate_facility', 'financial', 'office'])) & (test_data['subcategory'] != '') & (test_data['leg'] == False)]
@@ -1345,23 +1377,34 @@ class PrepareLogs:
         
     def check_double_sublet(self, test_data):
         
-        if self.sector == "off" or self.sector == "ind":
-            test_data['count'] = test_data.groupby('property_source_id')['property_source_id'].transform('count')
-            test_data['count_sublease'] = test_data[test_data['lease_sublease'] == 1].groupby('property_source_id')['property_source_id'].transform('count')
-            test_data['count_sublease'] = test_data.groupby('property_source_id')['count_sublease'].bfill()
-            test_data['count_sublease'] = test_data.groupby('property_source_id')['count_sublease'].ffill()
-            test_data['total_avail'] = test_data.groupby('property_source_id')['space_size_available'].transform('sum', min_count=1)
-            temp = test_data.copy()
-            temp = temp[(temp['count_sublease'] > 0) & (temp['count_sublease'] < temp['count']) & (temp['total_avail'] > temp['tot_size'])]
-            if len(temp) > 0:
-                temp = temp.drop_duplicates('property_source_id')
-                temp['flag'] = 'Direct and sublease space available at property, but total avail exceeds size, indicating that the same space is listed for both sublease and direct lease'
-                temp['column'] = 'sublet'
-                temp['status'] = 'flagged'
-                self.logic_log = self.logic_log.append(temp[['flag', 'column', 'property_source_id', 'status']], ignore_index=True)
+        test_data['count'] = test_data.groupby('property_source_id')['property_source_id'].transform('count')
+        test_data['count_sublease'] = test_data[test_data['lease_sublease'] == 1].groupby('property_source_id')['property_source_id'].transform('count')
+        test_data['count_sublease'] = test_data.groupby('property_source_id')['count_sublease'].bfill()
+        test_data['count_sublease'] = test_data.groupby('property_source_id')['count_sublease'].ffill()
+        test_data['total_avail'] = test_data.groupby('property_source_id')['space_size_available'].transform('sum', min_count=1)
+        temp = test_data.copy()
+        temp = temp[(temp['count_sublease'] > 0) & (temp['count_sublease'] < temp['count']) & (temp['total_avail'] > temp['tot_size'])]
+        if len(temp) > 0:
+            temp = temp.drop_duplicates('property_source_id')
+            temp['flag'] = 'Direct and sublease space available at property, but total avail exceeds size, indicating that the same space is listed for both sublease and direct lease'
+            temp['column'] = 'sublet'
+            temp['status'] = 'flagged'
+            self.logic_log = self.logic_log.append(temp[['flag', 'column', 'property_source_id', 'status']], ignore_index=True)
 
-            test_data['space_size_available'] = np.where((test_data['count_sublease'] > 0) & (test_data['count_sublease'] < test_data['count']) & (test_data['total_avail'] > test_data['tot_size']), np.nan, test_data['space_size_available'])
-    
+        test_data['space_size_available'] = np.where((test_data['count_sublease'] > 0) & (test_data['count_sublease'] < test_data['count']) & (test_data['total_avail'] > test_data['tot_size']), np.nan, test_data['space_size_available'])
+
+        test_data['space_ident'] = np.where((test_data['space_size_available_leased'].isnull() == False), test_data['listed_space_title'].astype(str) + ' Floor ' + test_data['space_floor'].astype(str) + ' Suite ' + test_data['space_suite'].astype(str) + ' ' + test_data['space_size_available_leased'].astype(str), test_data['listed_space_title'].astype(str) + ' Floor ' + test_data['space_floor'].astype(str) + ' Suite ' + test_data['space_suite'].astype(str) + ' ' + test_data['space_size_available'].astype(str))
+        test_data['space_ident'] = test_data['space_ident'].str.strip()
+        test_data['count'] = test_data.groupby(['property_source_id', 'space_ident'])['property_source_id'].transform('count')
+        temp = test_data.copy()
+        temp = temp[(temp['count'] > 1) & (temp['space_size_available'].isnull() == False) & ((temp['space_floor'] != '') | (temp['space_suite'] != ''))]
+        if len(temp) > 0:
+            temp = temp.drop_duplicates(['property_source_id', 'space_ident'])
+            temp['flag'] = 'Property has space listed more than once, may indicate duplicate listing'
+            temp['status'] = 'flagged'
+            temp['c_value'] = temp['space_ident']
+            self.logic_log = self.logic_log.append(temp[['flag', 'property_source_id', 'status', 'c_value']], ignore_index=True)          
+
         return test_data
     
     def calc_ranges(self, log, test_data):
@@ -1535,10 +1578,14 @@ class PrepareLogs:
         test_data['avrent_norm'] = np.where((test_data['lease_asking_rent_price_period'] == 'monthly'), test_data['avrent_norm'] * 12, test_data['avrent_norm'])
         test_data['avrent_norm'] = np.where((test_data['space_size_available_leased'] == 0) & (test_data['lease_asking_rent_price_size'] == 'total'), np.nan, test_data['avrent_norm'])    
 
-        test_data['opex_norm'] = np.where((test_data['occupancy_expenses_size'] == 'total') & (test_data['space_size_available_leased'] > 0) & (test_data['space_size_available_leased'].isnull() == False), test_data['occupancy_expenses_amount_amount'] / test_data['space_size_available_leased'], test_data['occupancy_expenses_amount_amount'])
-        test_data['opex_norm'] = np.where((test_data['occupancy_expenses_period'] == 'monthly'), test_data['opex_norm'] * 12, test_data['opex_norm'])
-        test_data['opex_norm'] = np.where((test_data['space_size_available_leased'] == 0) & (test_data['occupancy_expenses_size'] == 'total'), np.nan, test_data['opex_norm'])    
-        
+        if period:
+            test_data['lease_or_property_expenses_amount'] = test_data['occupancy_expenses_amount_amount']
+        test_data['use_prop_level'] = np.where((test_data['occupancy_expenses_amount_amount'] == test_data['lease_or_property_expenses_amount']) | ((test_data['lease_or_property_expenses_amount'] <= 0.2) & (test_data['occupancy_expenses_amount_amount'].isnull() == False)), True, False)
+        test_data['opex_norm'] = np.where((test_data['use_prop_level']) & (test_data['occupancy_expenses_size'] == 'total') & (test_data['space_size_available_leased'] > 0) & (test_data['space_size_available_leased'].isnull() == False), test_data['lease_or_property_expenses_amount'] / test_data['space_size_available_leased'], test_data['occupancy_expenses_amount_amount'])
+        test_data['opex_norm'] = np.where((test_data['use_prop_level']) & (test_data['occupancy_expenses_period'] == 'monthly'), test_data['opex_norm'] * 12, test_data['opex_norm'])
+        test_data['opex_norm'] = np.where((test_data['use_prop_level']) & (test_data['space_size_available_leased'] == 0) & (test_data['occupancy_expenses_size'] == 'total'), np.nan, test_data['opex_norm'])    
+        test_data['opex_norm'] = np.where((test_data['use_prop_level'] == False), test_data['lease_or_property_expenses_amount'], test_data['opex_norm'])
+
         test_data['retax_norm'] = np.where((test_data['tot_size'] > 0) & (test_data['property_real_estate_tax_year'] == self.curryr) & (test_data['tot_size'] > 0) & (test_data['tot_size'].isnull() == False), test_data['property_real_estate_tax_amt'] / test_data['tot_size'], np.nan)
         
 
@@ -2064,7 +2111,7 @@ class PrepareLogs:
             test_data['p_nsize'] = test_data['tot_size']
             test_data['s_gsize'] = test_data['tot_size']
             test_data['s_nsize'] = test_data['tot_size']
-            test_data['surstat'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0])
+            test_data['surstat'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0].str.upper())
             test_data['surstat'] = np.where(test_data['surstat'] == 'E', 'C', test_data['surstat'])
             test_data['expstop'] = ''
             test_data['passthru'] = ''
@@ -2085,7 +2132,7 @@ class PrepareLogs:
             test_data['ceil_avg'] = np.where((test_data['buildings_physical_characteristics_clear_height_min_ft'].isnull() == True) & (test_data['buildings_physical_characteristics_clear_height_max_ft'].isnull() == False), test_data['buildings_physical_characteristics_clear_height_max_ft'], test_data['ceil_avg'])
             test_data['ceil_avg'] = np.where((test_data['buildings_physical_characteristics_clear_height_min_ft'].isnull() == False) & (test_data['buildings_physical_characteristics_clear_height_max_ft'].isnull() == True), test_data['buildings_physical_characteristics_clear_height_min_ft'], test_data['ceil_avg'])
             test_data['selected'] = 'A'
-            test_data['surstat'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0])
+            test_data['surstat'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0].str.upper())
             test_data['surstat'] = np.where(test_data['surstat'] == 'E', 'C', test_data['surstat'])
             test_data['off_lowrent'] = np.nan
             test_data['off_hirent'] = np.nan
@@ -2106,7 +2153,7 @@ class PrepareLogs:
             test_data['n_lorent'] = np.nan
             test_data['n_hirent'] = np.nan
         
-        test_data['status'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0])
+        test_data['status'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0].str.upper())
         test_data['status'] = np.where(test_data['status'] == 'E', 'C', test_data['status']) 
         test_data['lease_own'] = np.where((test_data['occupancy_owneroccupied'] == 0), 'L', '')
         test_data['lease_own'] = np.where(test_data['occupancy_owneroccupied'] == 1, 'O', test_data['lease_own'])
