@@ -935,21 +935,22 @@ class PrepareLogs:
             
         temp = test_data.copy()
         temp = temp[(temp['foundation_property_id'] != '') & (temp['foundation_property_id'].isnull() == False)]
-        temp = temp[temp['foundation_property_id'].str[0] == self.sector_map[self.sector]['prefix']]
+        temp = temp[temp['foundation_property_id'].str[0] == sector_map[sector]['prefix']]
         temp = temp[(temp['use_park'])]
         temp = temp[(temp['businesspark'] != '') & (temp['businesspark'].isnull() == False)]
-        temp = temp.join(test_data[test_data['a_size'].isnull() == False].drop_duplicates('park_identity').set_index('park_identity').rename(columns={'a_size': 'a_size_filled'})[['a_size_filled']], on='park_identity')
+        temp = temp.join(test_data[test_data['a_size'].isnull() == False].drop_duplicates('park_identity').set_index('park_identity').rename(columns={'a_size': 'a_size_filled', 'tot_size': 'tot_size_filled'})[['a_size_filled', 'tot_size_filled']], on='park_identity')
         temp = temp.join(test_data[test_data['n_size'].isnull() == False].drop_duplicates('park_identity').set_index('park_identity').rename(columns={'n_size': 'n_size_filled'})[['n_size_filled']], on='park_identity')
+        temp[bp_field] = np.where((temp['tot_size_filled'].isnull() == False), temp['tot_size_filled'], temp[bp_field])
         temp['anchor_within_business_park_size_sf'] = np.where((temp['a_size_filled'].isnull() == False), temp['a_size_filled'], temp['anchor_within_business_park_size_sf'])
         temp['nonanchor_within_business_park_size_sf'] = np.where((temp['n_size_filled'].isnull() == False), temp['n_size_filled'], temp['nonanchor_within_business_park_size_sf'])
         temp = temp.drop_duplicates('park_identity')
         test_data = test_data.join(temp.set_index('park_identity').rename(columns={'foundation_property_id': 'foundation_property_id_from_park', 'metcode': 'metcode_from_park', 'gsub': 'subid_from_park', bp_field: 'tot_size_from_park', 'anchor_within_business_park_size_sf': 'anchor_size_from_park', 'nonanchor_within_business_park_size_sf': 'nonanchor_size_from_park', 'type1': 'type1_from_park'})[['foundation_property_id_from_park', 'metcode_from_park', 'subid_from_park', 'tot_size_from_park', 'anchor_size_from_park', 'nonanchor_size_from_park', 'type1_from_park']], on='park_identity')
-        test_data['use_park'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), True, test_data['use_park'])
-        test_data['size_method'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), 'Linked To Catylist ID Via BP', test_data['size_method'])
-        test_data['metcode'] = np.where((test_data['foundation_property_id'] == '') & (test_data['metcode_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['metcode_from_park'], test_data['metcode'])
-        test_data['gsub'] = np.where((test_data['foundation_property_id'] == '') & (test_data['subid_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['subid_from_park'], test_data['gsub'])
-        test_data['tot_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['tot_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['tot_size_from_park'], test_data['tot_size'])
-        
+        test_data['use_park'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), True, test_data['use_park'])
+        test_data['size_method'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), 'Linked To Catylist ID Via BP', test_data['size_method'])
+        test_data['metcode'] = np.where((test_data['foundation_property_id'] == '') & (test_data['metcode_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), test_data['metcode_from_park'], test_data['metcode'])
+        test_data['gsub'] = np.where((test_data['foundation_property_id'] == '') & (test_data['subid_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), test_data['subid_from_park'], test_data['gsub'])
+        test_data['tot_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['tot_size_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), test_data['tot_size_from_park'], test_data['tot_size'])
+    
         # Because prop size may have changed from the initial value, recalc anchor status as long as the size method was not bp size (in that case, we do want to retain the individual original anchor statuses, so we can calculate anchor and non anchor rents at the park for the different properties that compose it as in traditional REIS)
         if self.sector == "ret":
             test_data['test1'] = (test_data['tot_size'] >= 9300) & (test_data['occupancy_type'] == 'single_tenant') 
