@@ -161,7 +161,7 @@ class PrepareLogs:
             logging.info("{} has no entry in the rename dict, need to add one. Will use {} for now to evaluate what columns we need to rename".format(sector.title(), list(type_dict_all.keys())[0].title()))
             logging.info('\n')
         self.orig_cols = list(self.type_dict.keys())
-        if sector == "ret":
+        if self.sector == "ret":
             self.consistency_dict = consistency_dict[sector]
         else:
             self.consistency_dict = {}
@@ -1949,7 +1949,7 @@ class PrepareLogs:
             temp = temp.drop_duplicates('id_use')
             test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_crd']], on='id_use')
             
-        if sector == "ret":
+        if self.sector == "ret":
             thresh = 1000
             test_data['n_avail_unused'] = np.where((test_data['n_size'] > test_data['n_prop_dir_avail']), test_data['n_size'] - test_data['n_prop_dir_avail'], 0)
             test_data['a_avail_unused'] = np.where((test_data['a_size'] > test_data['a_prop_dir_avail']), test_data['a_size'] - test_data['a_prop_dir_avail'], 0)
@@ -1965,7 +1965,7 @@ class PrepareLogs:
             test_data['a_prop_dir_avail'] = np.where((test_data['has_mix']) & (test_data['a_avail_over'] > 0), test_data['a_prop_dir_avail'] - test_data[['a_avail_over', 'n_avail_unused']].min(1), test_data['a_prop_dir_avail'])
         
         temp = test_data.copy()
-        if sector == "ret":
+        if self.sector == "ret":
             # Opex, Tax, and Cam are collected at the property level in RDMA, so filter by property level anchor status
             temp = temp[temp['retail_property_is_anchor_flag'] == 'N']
 
