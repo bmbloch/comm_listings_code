@@ -1024,7 +1024,7 @@ class PrepareLogs:
         temp['extra_sector'] = np.where((temp['testing']) & (~temp['category'].isin(cat_map[self.sector])), True, False)
         if len(temp[temp['extra_sector']]) > 0:
             temp = temp[temp['extra_sector']]
-            temp['reason'] = 'subcategory not in line with publishable REIS types'
+            temp['reason'] = 'REIS ID linked to multiple Catylist properties, and subcategory not in line with publishable REIS types'
             self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason']].drop_duplicates('property_source_id'), ignore_index=True)
             test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id').rename(columns={'reason': 'drop_these'})[['drop_these']], on='property_source_id')
             test_data = test_data[test_data['drop_these'].isnull() == True]
