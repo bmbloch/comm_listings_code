@@ -328,9 +328,9 @@ def get_dicts():
                        }
                  }
     
-    sector_map = {'off': {'sector': ['Off'], 'prefix': 'O'},
-                   'ind': {'sector': ['Dis', 'Flx'], 'prefix': 'I'},
-                   'ret': {'sector': ['Ret'], 'prefix': 'R'}
+    sector_map = {'off': {'sector': ['Off'], 'prefix': 'O', 'category': ['office', 'government']},
+                   'ind': {'sector': ['Dis', 'Flx'], 'prefix': 'I', 'category': ['industrial']},
+                   'ret': {'sector': ['Ret'], 'prefix': 'R', 'category': ['retail']}
                   }
     space_map = {'ind': ['industrial', 'flex_r_and_d', 'life_science', 'office'],
                  'off': ['office'],
