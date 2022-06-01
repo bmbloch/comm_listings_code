@@ -3443,6 +3443,10 @@ class PrepareLogs:
             aggreg_drop = aggreg_drop[aggreg_drop['drop_this'] == 0]
             aggreg_drop = aggreg_drop.drop(['match_cat', 'count_match_cat', 'cumcount', 'count', 'drop_this', 'has_core', 'sum_has_core'],axis=1)
             
+            aggreg_drop = aggreg_drop.join(aggreg_snaps.drop_duplicates('property_source_id').set_index('property_source_id')[['has_vac']], on='c_id')
+            aggreg_drop = aggreg_drop[aggreg_drop['has_vac'].isnull() == True]
+            aggreg_drop = aggreg_drop.drop(['has_vac'],axis=1)
+
             aggreg_drop.to_csv('{}/OutputFiles/aggreg_logs/all_drops_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
             aggreg_logic.to_csv('{}/OutputFiles/aggreg_logs/all_logic_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
             aggreg_snaps.to_csv('{}/OutputFiles/aggreg_logs/all_snaps_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
