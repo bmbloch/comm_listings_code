@@ -929,6 +929,7 @@ class PrepareLogs:
             test_data['a_size'] = np.where((test_data['use_reis_breakout']) & ((test_data['log_n_size'].isnull() == False) | (test_data['log_a_size'].isnull() == False)) & ((test_data['log_n_size']) > 0 | (test_data['log_a_size'] > 0)), test_data['log_a_size'], test_data['a_size'])
             test_data['n_size'] = np.where((test_data['use_reis_breakout']) & (test_data['n_size'].isnull() == True) & (test_data['a_size'] == test_data['tot_size']), 0, test_data['n_size'])
             test_data['a_size'] = np.where((test_data['use_reis_breakout']) & (test_data['a_size'].isnull() == True) & (test_data['n_size'] == test_data['tot_size']), 0, test_data['a_size'])
+            test_data['tot_size'] = np.where((test_data['use_reis_breakout']) & (test_data['log_tot_size'].isnull() == True), test_data['a_size'] + test_data['n_size'], test_data['tot_size'])
             test_data['retail_property_is_anchor_flag'] = np.where((test_data['use_reis_breakout']) & (test_data['retail_property_is_anchor_flag'] == '') & (test_data['tot_size'] >= 9300), 'Y', test_data['retail_property_is_anchor_flag'])
             test_data['retail_property_is_anchor_flag'] = np.where((test_data['use_reis_breakout']) & (test_data['retail_property_is_anchor_flag'] == '') & (test_data['tot_size'] < 9300), 'N', test_data['retail_property_is_anchor_flag'])
             test_data['size_method'] = np.where((test_data['use_reis_breakout']), 'REIS Size SQFT', test_data['size_method'])
