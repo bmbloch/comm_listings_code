@@ -946,11 +946,11 @@ class PrepareLogs:
         temp['nonanchor_within_business_park_size_sf'] = np.where((temp['n_size_filled'].isnull() == False), temp['n_size_filled'], temp['nonanchor_within_business_park_size_sf'])
         temp = temp.drop_duplicates('park_identity')
         test_data = test_data.join(temp.set_index('park_identity').rename(columns={'foundation_property_id': 'foundation_property_id_from_park', 'metcode': 'metcode_from_park', 'gsub': 'subid_from_park', bp_field: 'tot_size_from_park', 'anchor_within_business_park_size_sf': 'anchor_size_from_park', 'nonanchor_within_business_park_size_sf': 'nonanchor_size_from_park', 'type1': 'type1_from_park'})[['foundation_property_id_from_park', 'metcode_from_park', 'subid_from_park', 'tot_size_from_park', 'anchor_size_from_park', 'nonanchor_size_from_park', 'type1_from_park']], on='park_identity')
-        test_data['use_park'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), True, test_data['use_park'])
-        test_data['size_method'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), 'Linked To Catylist ID Via BP', test_data['size_method'])
-        test_data['metcode'] = np.where((test_data['foundation_property_id'] == '') & (test_data['metcode_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['metcode_from_park'], test_data['metcode'])
-        test_data['gsub'] = np.where((test_data['foundation_property_id'] == '') & (test_data['subid_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['subid_from_park'], test_data['gsub'])
-        test_data['tot_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['tot_size_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), test_data['tot_size_from_park'], test_data['tot_size'])
+        test_data['use_park'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), True, test_data['use_park'])
+        test_data['size_method'] = np.where((test_data['foundation_property_id'] == '') & (test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), 'Linked To Catylist ID Via BP', test_data['size_method'])
+        test_data['metcode'] = np.where((test_data['foundation_property_id'] == '') & (test_data['metcode_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), test_data['metcode_from_park'], test_data['metcode'])
+        test_data['gsub'] = np.where((test_data['foundation_property_id'] == '') & (test_data['subid_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), test_data['subid_from_park'], test_data['gsub'])
+        test_data['tot_size'] = np.where((test_data['foundation_property_id'] == '') & (test_data['tot_size_from_park'].isnull() == False) & (test_data['space_category'].isin(space_map[sector] + [''])), test_data['tot_size_from_park'], test_data['tot_size'])
     
         # Because prop size may have changed from the initial value, recalc anchor status as long as the size method was not bp size (in that case, we do want to retain the individual original anchor statuses, so we can calculate anchor and non anchor rents at the park for the different properties that compose it as in traditional REIS)
         if self.sector == "ret":
@@ -1328,7 +1328,7 @@ class PrepareLogs:
         test_data['prop_dir_avail'] = test_data['prop_dir_avail'].fillna(0)
         test_data['prop_sub_avail'] = test_data['prop_sub_avail'].fillna(0)
         test_data['avail_test'] = np.where((test_data['prop_dir_avail'] + test_data['prop_sub_avail'] >= test_data['tot_size']), 1, 0)
-        test_data['avail_test'] = np.where((~test_data['catylist_sector'].isin(self.sector_map[self.sector]['sector'])), 1, test_data['avail_test'])
+        test_data['avail_test'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) & (test_data['subcategory'] != 'mixed_use'), 1, test_data['avail_test'])
         
         test_data['count'] = test_data[((test_data['space_category'].isin(self.space_map[self.sector])) | (test_data['space_category'].isnull() == True) | (test_data['space_category'] == '')) & ((test_data['space_category'] != 'office') | (self.sector != 'ind') | (test_data['type2'] == "F"))].groupby('property_source_id')['property_source_id'].transform('count')
         test_data['count'] = test_data.groupby('property_source_id')['count'].bfill()
@@ -1337,16 +1337,20 @@ class PrepareLogs:
         
         test_data['count_links'] = test_data.groupby('id_use')['property_source_id'].transform('nunique')
         
+        test_data['size_by_use_test'] = False
+        test_data['size_by_use_test'] = np.where((self.sector == 'off') & (test_data['subcategory'] == 'mixed_use') & ((test_data['building_office_size_sf'] > 0) | (test_data['category'].isin(self.sector_map[self.sector]['category']))), True, test_data['size_by_use_test'])
+        test_data['size_by_use_test'] = np.where((self.sector == 'ind') & (test_data['subcategory'] == 'mixed_use') & ((test_data['building_industrial_size_sf'] > 0) | (test_data['category'].isin(self.sector_map[self.sector]['category']))), True, test_data['size_by_use_test'])
+        test_data['size_by_use_test'] = np.where((self.sector == 'ret') & (test_data['subcategory'] == 'mixed_use') & ((test_data['building_retail_size_sf'] > 0) | (test_data['category'].isin(self.sector_map[self.sector]['category']))), True, test_data['size_by_use_test'])
+        
         temp = test_data.copy()
-        temp = temp[((~temp['space_category'].isin(self.space_map[self.sector])) | ((self.sector == 'ind') & (temp['space_category'] == 'office') & (temp['type2'] != "F"))) & (temp['space_category'].isnull() == False) & (temp['space_category'] != '') & (temp['count'] == 0) & ((temp['avail_test'] == 1) | (temp['leg'] == False) | (temp['count_links'] > 1))]
+        temp = temp[((~temp['space_category'].isin(self.space_map[self.sector])) | ((self.sector == 'ind') & (temp['space_category'] == 'office') & (temp['type2'] != "F"))) & (temp['space_category'] != '') & (temp['count'] == 0) & ((temp['avail_test'] == 1) | (temp['leg'] == False) | (temp['count_links'] > 1) | ((temp['size_by_use_test'] == False) & (temp['subcategory'] == 'mixed_use')))]
         if len(temp) > 0:
             temp['reason'] = 'property has no spaces that fit publishable reis types for this sector'
             self.drop_log = self.drop_log.append(temp[['property_source_id', 'reason', 'space_category', 'id_use']].drop_duplicates('property_source_id'), ignore_index=True)
         
-        test_data['inferred_lease'] = False
         temp2 = test_data.copy()
-        temp2 = temp2[(temp2['count'] == 0) & (temp2['avail_test'] == 0) & (temp2['leg']) & (temp2['count_links'] == 1)]
-        temp2['inferred_lease'] = True
+        temp2['inferred_lease'] = np.where((temp2['count'] == 0) & (temp2['avail_test'] == 0) & (temp2['leg']) & (temp2['count_links'] == 1) & ((test_data['size_by_use_test']) | (test_data['subcategory'] != 'mixed_use')), True, False)
+        temp2 = temp2[temp2['inferred_lease']]
         temp2 = temp2.drop_duplicates('id_use')
         temp2['space_size_available'] = 0
         temp2['availability_status'] = 'leased'
@@ -1360,9 +1364,10 @@ class PrepareLogs:
                     'commission_amount_type', 'lease_transaction_tenantimprovementallowancepsf_amount', 'lease_transaction_tenantimprovementallowancepsf_currency', 
                     'lease_asking_rent_max_amt', 'lease_asking_rent_min_amt', 'lease_asking_rent_price_period', 'lease_asking_rent_price_size', 'lease_transaction_rent_price_max_amt', 'lease_transaction_rent_price_min_amt']
         temp2[nan_cols] = np.nan
+        test_data['inferred_lease'] = False
         test_data = test_data.append(temp2, ignore_index=True)
         test_data = test_data.reset_index(drop=True)
-            
+        
         test_data[test_data['inferred_lease']].to_csv('{}/OutputFiles/{}/logic_logs/inferred_leased_{}m{}.csv'.format(self.home, self.sector, self.curryr, self.currmon), index=False)
         
         test_data = test_data[((test_data['space_category'].isin(self.space_map[self.sector])) | (test_data['space_category'].isnull() == True) | (test_data['space_category'] == '')) & ((test_data['space_category'] != 'office') | (self.sector != 'ind') | (test_data['type2'] == "F"))]
@@ -1372,7 +1377,7 @@ class PrepareLogs:
         logging.info('{:,} unique {} properties have an initial rent observation'.format(len(test_data[(((test_data['lease_asking_rent_max_amt'].isnull() == False) | (test_data['lease_asking_rent_min_amt'].isnull() == False)) & (~test_data['availability_status'].isin(['leased', 'withdrawn']))) | (((test_data['lease_transaction_rent_price_max_amt'].isnull() == False) | (test_data['lease_transaction_rent_price_min_amt'].isnull() == False)) & (test_data['availability_status'].isin(['leased', 'withdrawn'])))].drop_duplicates('property_source_id')), self.sector))
         logging.info("\n")
         
-        test_data['listed_space_id'] = np.where((test_data['inferred_lease']), np.nan, test_data['listed_space_id'])
+        test_data['listed_space_id'] = np.where((test_data['inferred_lease']), '', test_data['listed_space_id'])
         test_data = test_data[cols]
             
         return test_data
@@ -3446,7 +3451,7 @@ class PrepareLogs:
             aggreg_drop = aggreg_drop.join(aggreg_snaps.drop_duplicates('property_source_id').set_index('property_source_id')[['has_vac']], on='c_id')
             aggreg_drop = aggreg_drop[aggreg_drop['has_vac'].isnull() == True]
             aggreg_drop = aggreg_drop.drop(['has_vac'],axis=1)
-
+            
             aggreg_drop.to_csv('{}/OutputFiles/aggreg_logs/all_drops_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
             aggreg_logic.to_csv('{}/OutputFiles/aggreg_logs/all_logic_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
             aggreg_snaps.to_csv('{}/OutputFiles/aggreg_logs/all_snaps_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
