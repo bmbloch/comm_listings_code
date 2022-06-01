@@ -935,7 +935,7 @@ class PrepareLogs:
             
         temp = test_data.copy()
         temp = temp[(temp['foundation_property_id'] != '') & (temp['foundation_property_id'].isnull() == False)]
-        temp = temp[temp['foundation_property_id'].str[0] == sector_map[sector]['prefix']]
+        temp = temp[temp['foundation_property_id'].str[0] == self.sector_map[self.sector]['prefix']]
         temp = temp[(temp['use_park'])]
         temp = temp[(temp['businesspark'] != '') & (temp['businesspark'].isnull() == False)]
         temp = temp.join(test_data[test_data['a_size'].isnull() == False].drop_duplicates('park_identity').set_index('park_identity').rename(columns={'a_size': 'a_size_filled', 'tot_size': 'tot_size_filled'})[['a_size_filled', 'tot_size_filled']], on='park_identity')
