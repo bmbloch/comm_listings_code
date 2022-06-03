@@ -107,7 +107,7 @@ class PrepareLogs:
     def load_incrementals(self, sector, type_dict_all, rename_dict_all, consistency_dict, load, test_data_in=pd.DataFrame()):
         if load:
             if self.home[0:2] == 's3' and self.live_load:
-                #!pip install redshift_connector
+                #!pip install -q redshift_connector
                 import redshift_connector
                 logging.info('Querying View...')
                 logging.info('\n')
