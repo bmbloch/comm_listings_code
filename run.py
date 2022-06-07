@@ -374,6 +374,37 @@ else:
 os.environ['NUMEXPR_MAX_THREADS'] = str(splits)
 os.environ['NUMEXPR_NUM_THREADS'] = str(splits)
 
+def assign_met(test_data, log):
+    
+    undup = test_data.copy()
+    undup = undup.drop_duplicates('property_source_id')
+    
+    undup['num_links'] = undup['foundation_ids_list'].str.count(',')
+    undup['num_links'] = np.where((undup['num_links'] > 0), undup['num_links'] + 1, undup['num_links'])
+    undup['num_links'] = np.where((undup['foundation_ids_list'] != '') & (undup['num_links'] == 0), 1, undup['num_links'])
+    max_links = undup['num_links'].max()
+    undup['join_id'] = ''
+    undup['metcode_use'] = np.where((undup['property_geo_msa_list'] != ''), undup['property_geo_msa_list'].str.split(',').str[0], '')
+    for i in range(0, max_links):
+        undup['join_id'] = np.where((undup['join_id'] == '') & (undup['num_links'] >= i + 1), undup['foundation_ids_list'].str.split(',').str[i].str[1:], undup['join_id'])
+        undup = undup.join(log.drop_duplicates('realid').set_index('realid').rename(columns={'metcode': 'log_metcode'})[['log_metcode']], on='join_id')
+        undup['metcode_use'] = np.where((undup['log_metcode'].isnull() == False) & (undup['metcode_use'] != ''), undup['log_metcode'], undup['metcode_use'])
+        undup = undup.drop(['log_metcode'], axis=1)
+    undup['join_id'] = np.where((undup['join_id'] == '') & (undup['property_reis_rc_id'] != ''), undup['property_reis_rc_id'].str[1:], undup['join_id'])
+    undup = undup.join(log.drop_duplicates('realid').set_index('realid').rename(columns={'metcode': 'log_metcode'})[['log_metcode']], on='join_id')
+    undup['metcode_use'] = np.where((undup['log_metcode'].isnull() == False) & (undup['metcode_use'] != ''), undup['log_metcode'], undup['metcode_use'])
+
+    undup.sort_values(by=['metcode_use'], ascending=[False], inplace=True)
+    
+    metcodes = undup['metcode_use'].unique()
+    split_data = []
+    for i in range(0, len(metcodes), int(np.ceil(len(metcodes) / splits))):
+        chunk = metcodes[i:i + int(np.ceil(len(metcodes) / splits))]
+        split_data.append(undup[undup['metcode_use'].isin(chunk)])
+    
+    return split_data
+
+
 try:
 
     print("Process initiated, check log for progress")
@@ -426,7 +457,7 @@ try:
 
                 # Convert variables to lower case, and perform other type conversions as necessary
                 test_data = prepLogs.handle_case(test_data)
-                
+
                 # Clean the text field that holds some of the commission data
                 test_data = prepLogs.clean_comm(test_data)
                 
@@ -441,14 +472,9 @@ try:
                     prepLogs.check_anchor_status(test_data)
                 
                 # Identify the correct Foundation ID, MSA, and Subid to link to the Catylist property
-                undup = test_data.copy()
-                undup = undup.drop_duplicates('property_source_id')
-                undup.sort_values(by=['foundation_ids_list'], ascending=[True], inplace=True)
-
                 log_ids = list(log.drop_duplicates('realid')['realid'])
                 
-                split_data = np.array_split(undup, splits)
-                del undup
+                split_data = assign_met(test_data, log)
                 pool = mp.Pool(splits)
                 result_async = [pool.apply_async(prepLogs.select_reis_id, args = (data, log, log_ids, count_split)) for data, count_split in zip(split_data, np.arange(1, len(split_data) + 1))]
                 results = [r.get() for r in result_async]

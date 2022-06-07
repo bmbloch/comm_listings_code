@@ -59,7 +59,7 @@ class PrepareLogs:
         # If you need more information about configurations or implementing the sample code, visit the AWS docs:   
         # https://aws.amazon.com/developers/getting-started/python/
 
-        secret_name = "arn:aws:secretsmanager:us-east-1:006245041337:secret:development/cre/db/redshift/crereader-qBRnft"
+        secret_name = "arn:aws:secretsmanager:us-east-1:006245041337:secret:development/cre/db/redshift/cre_developer-VtZhap"
         region_name = "us-east-1"
         # Create a Secrets Manager client
         session = boto3.session.Session()
@@ -410,7 +410,7 @@ class PrepareLogs:
                           'retail_property_is_anchor_flag', 'property_source_id', 'property_reis_rc_id',
                           'foundation_ids_list', 'catylist_sector', 'property_geo_msa_list', 
                           'property_geo_subid_list', 'street_address', 'commission_description', 'lease_terms', 
-                          'space_floor', 'space_suite', 'listed_space_title']
+                          'space_floor', 'space_suite', 'listed_space_title', 'state']
         
         for col in null_to_string:
             test_data[col] = np.where((test_data[col].isnull() == True), '', test_data[col])
@@ -418,6 +418,7 @@ class PrepareLogs:
         
         test_data['property_source_id'] = test_data['property_source_id'].astype(str)
         test_data['property_reis_rc_id'] = test_data['property_reis_rc_id'].astype(str)
+        test_data['property_reis_rc_id'] = np.where((test_data['property_reis_rc_id'].str[0].isin(['I', 'O'])), test_data['property_reis_rc_id'].str[:-1], test_data['property_reis_rc_id'])
         
         test_data['businesspark'] = np.where((test_data['businesspark'].isnull() == True), '', test_data['businesspark'])
         test_data['businesspark'] = test_data['businesspark'].str.strip()
@@ -701,7 +702,7 @@ class PrepareLogs:
     def select_reis_id(self, undup, log, log_ids, batch):
     
         if batch == 1:
-            logging.info("Choosing REIS ID Link, batch size {:,}...".format(len(undup)))
+            logging.info("Choosing REIS ID Link...")
             logging.info("\n")
         
         undup = undup.drop_duplicates('property_source_id')
@@ -727,11 +728,8 @@ class PrepareLogs:
             if er_check:
                 
                 prop_addr_num = row['street_address'].lower().strip().split(' ')[0]
-                
-                if self.sector == "off" or self.sector == "ind":
-                    rc_id = row['property_reis_rc_id'][:-1]
-                elif self.sector == "ret":
-                    rc_id = row['property_reis_rc_id']
+    
+                rc_id = row['property_reis_rc_id']
                 
                 er_ids = row['foundation_ids_list'].split(',')
                 
@@ -1114,8 +1112,7 @@ class PrepareLogs:
         if len(temp) > 0:
             temp['flag'] = 'property linked to REIS id that is not live'
             temp['status'] = 'No Econ Link'
-            temp['rc_nosuffix'] = np.where((self.sector in ['off', 'ind']) & (temp['property_reis_rc_id'] != ''), temp['property_reis_rc_id'].str[:-1], temp['property_reis_rc_id'])
-            temp['ids_to_add'] = temp[['foundation_ids_list', 'rc_nosuffix']].apply(lambda x: ', '.join(x[x.notnull()]), axis=1)
+            temp['ids_to_add'] = temp[['foundation_ids_list', 'property_reis_rc_id']].apply(lambda x: ', '.join(x[x.notnull()]), axis=1)
             temp['ids_to_add'] = temp['ids_to_add'].str.strip()
             temp['ids_to_add'] = np.where((temp['ids_to_add'].str[0] == ','), temp['ids_to_add'].str[1:].str.strip(), temp['ids_to_add'])
             temp['ids_to_add'] = np.where((temp['ids_to_add'].str[-1] == ','), temp['ids_to_add'].str[:-1].str.strip(), temp['ids_to_add'])
@@ -1125,8 +1122,7 @@ class PrepareLogs:
         if len(temp) > 0:
             temp['flag'] = 'property not linked to REIS id in this sector'
             temp['status'] = 'No Econ Link'
-            temp['rc_nosuffix'] = np.where((self.sector in ['off', 'ind']) & (temp['property_reis_rc_id'] != ''), temp['property_reis_rc_id'].str[:-1], temp['property_reis_rc_id'])
-            temp['ids_to_add'] = temp[['foundation_ids_list', 'rc_nosuffix']].apply(lambda x: ', '.join(x[x.notnull()]), axis=1)
+            temp['ids_to_add'] = temp[['foundation_ids_list', 'property_reis_rc_id']].apply(lambda x: ', '.join(x[x.notnull()]), axis=1)
             temp['ids_to_add'] = temp['ids_to_add'].str.strip()
             temp['ids_to_add'] = np.where((temp['ids_to_add'].str[0] == ','), temp['ids_to_add'].str[1:].str.strip(), temp['ids_to_add'])
             temp['ids_to_add'] = np.where((temp['ids_to_add'].str[-1] == ','), temp['ids_to_add'].str[:-1].str.strip(), temp['ids_to_add'])
