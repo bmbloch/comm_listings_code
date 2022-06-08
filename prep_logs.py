@@ -1816,7 +1816,7 @@ class PrepareLogs:
 
             # Drop sublease listings when calculating rent, but theoretically all other performance data points are fine to include in the prop rollup
             temp1 = temp.copy()
-            temp1 = temp1[(temp1['lease_sublease'] == 0) | temp1['lease_sublease'].isnull() == True]
+            temp1 = temp1[(temp1['lease_sublease'] == 0) | (temp1['lease_sublease'].isnull() == True)]
 
             if self.sector == "off":
                 rent_log = 'avrent'
@@ -2034,6 +2034,7 @@ class PrepareLogs:
         
         for basis in ['N', 'G']:
             temp = test_data.copy()
+            temp = temp[(temp['lease_sublease'] == 0) | (temp['lease_sublease'].isnull() == True)]
             temp['count_obs'] = temp.groupby('id_use')['rent_basis'].transform('count')
             temp['count_obs'] = temp['count_obs'].fillna(0)
             if self.sector == "ret":
