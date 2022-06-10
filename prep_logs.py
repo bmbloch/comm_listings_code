@@ -3086,7 +3086,10 @@ class PrepareLogs:
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
         nc_add['size'] = np.where((nc_add[size_by_use] > 0), nc_add[size_by_use], nc_add['size'])
-        nc_add = nc_add[(nc_add['size'].isnull() == False) & (nc_add['size'] > 10000)]
+        if self.sector == "off" or self.sector == "ind":
+            nc_add = nc_add[(nc_add['size'].isnull() == False) & (nc_add['size'] > 10000)]
+        elif self.sector == "ret":
+            nc_add = nc_add[(nc_add['size'].isnull() == False)]
         
         if self.sector == "ind":
             nc_add['off_perc'] = nc_add['building_office_size_sf'] / nc_add['size']
