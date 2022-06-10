@@ -3087,9 +3087,9 @@ class PrepareLogs:
         nc_add = nc_add[nc_add['size'].isnull() == False]
         
         if self.sector == "ind":
-            nc_add['office_perc'] = nc_add['building_office_size_sf'] / nc_add['size']
-            nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), nc_add['warehouse_flex'], nc_add['subcategory'])
-            nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), nc_add['warehouse_distribution'], nc_add['subcategory'])
+            nc_add['off_perc'] = nc_add['building_office_size_sf'] / nc_add['size']
+            nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
+            nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
 
         
         nc_add = nc_add[(nc_add['occupancy_owner_occupied'].isnull() == True) | (nc_add['occupancy_owner_occupied'] == False)]
