@@ -2051,6 +2051,17 @@ class PrepareLogs:
         elif self.sector == "ind" or self.sector == "ret":
             test_data['max_term'] = np.where((test_data['count_term_N'] == test_data['count_term_G']) & (test_data['count_term_G'] > 0), 'N', test_data['max_term'])
         test_data['rent_basis'] = test_data['max_term']
+
+        if self.sector == "off":
+            temp = test_data.copy()
+            temp = temp[temp['type2'] == 'T']
+            temp = temp[((temp['prop_dir_avail'] < temp['tot_size']) & (temp['prop_dir_avail'] > 0)) | ((temp['prop_sub_avail'] < temp['tot_size']) & (temp['prop_sub_avail'] > 0))]
+            if len(temp) > 0:
+                temp['flag'] = 'Prop is Single Tenant but is not fully leased or fully vacant'
+                temp['status'] = 'flagged'
+                self.logic_log = self.logic_log.append(temp.drop_duplicates('property_source_id').rename(columns={'id_use': 'realid'})[['realid', 'flag', 'property_source_id', 'status']], ignore_index=True)
+            test_data['type2'] = np.where((test_data['type2'] == 'T') & ((test_data['prop_dir_avail'] < test_data['tot_size']) & (test_data['prop_dir_avail'] > 0)) | ((test_data['prop_sub_avail'] < test_data['tot_size']) & (test_data['prop_sub_avail'] > 0)), 'O', test_data['type2'])
+        
         
         test_data.sort_values(by=['id_use'], ascending=[False], inplace=True)
         mult_prop_link = test_data.copy()
