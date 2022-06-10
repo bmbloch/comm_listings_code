@@ -328,9 +328,9 @@ def get_dicts():
                        }
                  }
     
-    sector_map = {'off': {'sector': ['Off'], 'prefix': 'O', 'category': ['office', 'government']},
-                   'ind': {'sector': ['Dis', 'Flx'], 'prefix': 'I', 'category': ['industrial']},
-                   'ret': {'sector': ['Ret'], 'prefix': 'R', 'category': ['retail']}
+    sector_map = {'off': {'sector': ['Off'], 'prefix': 'O', 'category': ['office', 'government'], 'subcategory': ['general', 'office', 'corporate_facility', 'financial']},
+                   'ind': {'sector': ['Dis', 'Flx'], 'prefix': 'I', 'category': ['industrial'], 'subcategory': ['warehouse_distribution', 'warehouse_office', 'warehouse_flex']},
+                   'ret': {'sector': ['Ret'], 'prefix': 'R', 'category': ['retail'], 'subcategory': ['neighborhood_grocery_anchor', 'neighborhood_center', 'strip_center_anchored', 'strip_center', 'big_box', 'community_specialty', 'retail']}
                   }
     space_map = {'ind': ['industrial', 'flex_r_and_d', 'life_science', 'office'],
                  'off': ['office'],
@@ -425,7 +425,7 @@ try:
         else:
             load = False
             test_data_in, stop = prepLogs.load_incrementals(sector, type_dict_all, rename_dict_all, consistency_dict, load, test_data_in)
-        
+
         if not stop:
             test_data_in_filt = prepLogs.filter_incrementals(test_data_in)
 
@@ -560,6 +560,14 @@ try:
                         combo, test_data, stop = prepLogs.append_incrementals(test_data, log)
 
                         if not stop:
+                            
+                            # Add in new completions that do not have a listing or survey
+                            if load and live_load:
+                                d_prop, combo = append_nc_completions(combo)
+                            else:
+                                if load:
+                                    d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(get_home()), na_values="", keep_default_na=False)
+                                d_prop, combo = prepLogs.append_nc_completions(combo, d_prop)
 
                             # Drop the extra fields used for debugging purposes
                             combo = prepLogs.select_cols(combo)
