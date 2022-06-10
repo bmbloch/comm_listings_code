@@ -3073,7 +3073,7 @@ class PrepareLogs:
         nc_add = nc_add[((nc_add['category'].isin(self.sector_map[self.sector]['category'])) & (nc_add['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['']))) | (nc_add['mixed_use_check'])]
         
         if self.sector == "ind":
-            nc_add['drop'] = np.where((nc_add['subcategory'] == 'warehouse_office'), True, False)
+            nc_add['drop'] = np.where((nc_add['subcategory'] =='warehouse_office'), True, False)
             nc_add['drop'] = np.where((nc_add['subcategory'] == 'warehouse_office') & (nc_add['building_office_size_sf'].isnull() == False), False, nc_add['drop'])
             nc_add['drop'] = np.where((nc_add['subcategory'] == '') & (nc_add['building_office_size_sf'].isnull() == True), True, nc_add['drop'])
             nc_add = nc_add[nc_add['drop'] == False]
