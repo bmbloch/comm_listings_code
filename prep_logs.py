@@ -3073,7 +3073,7 @@ class PrepareLogs:
         nc_add = nc_add[((nc_add['category'].isin(self.sector_map[self.sector]['category'])) & (nc_add['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['']))) | (nc_add['mixed_use_check'])]
         
         if self.sector == "ind":
-            nc_add['drop'] = np.where((nc_add['subcategory'] =='warehouse_office'), True, False)
+            nc_add['drop'] = np.where((nc_add['subcategory'] == 'warehouse_office'), True, False)
             nc_add['drop'] = np.where((nc_add['subcategory'] == 'warehouse_office') & (nc_add['building_office_size_sf'].isnull() == False), False, nc_add['drop'])
             nc_add['drop'] = np.where((nc_add['subcategory'] == '') & (nc_add['building_office_size_sf'].isnull() == True), True, nc_add['drop'])
             nc_add = nc_add[nc_add['drop'] == False]
@@ -3081,16 +3081,17 @@ class PrepareLogs:
             nc_add = nc_add[nc_add['retail_center_type'] == '']
             nc_add = nc_add[nc_add['subcategory'] != '']
             
+        nc_add = nc_add[(nc_add['buildings_condominiumized'].isnull() == True) | (nc_add['buildings_condominiumized'] == False)]
+            
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
         nc_add['size'] = np.where((nc_add[size_by_use] > 0), nc_add[size_by_use], nc_add['size'])
-        nc_add = nc_add[nc_add['size'].isnull() == False]
+        nc_add = nc_add[(nc_add['size'].isnull() == False) & (nc_add['size'] > 10000)]
         
         if self.sector == "ind":
             nc_add['off_perc'] = nc_add['building_office_size_sf'] / nc_add['size']
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
-
         
         nc_add = nc_add[(nc_add['occupancy_owner_occupied'].isnull() == True) | (nc_add['occupancy_owner_occupied'] == False)]
         
@@ -3119,7 +3120,9 @@ class PrepareLogs:
                             
         nc_add = nc_add[~nc_add['property_source_id'].isin(drop_list)]
                     
-        
+        nc_add['month'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.month
+        nc_add = nc_add[nc_add['month'].isnull() == False]
+
         rename_cols = {'geospatial_metropolitan_statistical_area': 'metcode',
                'geospatial_submarket_id': 'subid',
                'property_name': 'propname',
@@ -3131,15 +3134,15 @@ class PrepareLogs:
                'buildings_construction_year_built': 'year',
                'buildings_physical_characteristics_number_of_floors': 'flrs',
                'buildings_number_of_buildings': 'bldgs',
-               'x': 'location_geopoint_longitude',
-               'y': 'location_geopoint_latitude',
+               'location_geopoint_longitude': 'x',
+               'location_geopoint_latitude': 'y',
                'parcel_fips': 'fipscode',
-               'docks': 'buildings_physical_characteristics_doors_crossdockdoors_count',
-               'dockhigh_doors': 'buildings_physical_characteristics_doors_dockhighdoors_count',
-               'drivein_doors': 'buildings_physical_characteristics_doors_gradeleveldoors_count',
-               'rail_doors': 'buildings_physical_characteristics_doors_raildoors_count',
-               'ceil_low': 'buildings_physical_characteristics_clear_height_min_ft',
-               'ceil_high': 'buildings_physical_characteristics_clear_height_max_ft',
+               'buildings_physical_characteristics_doors_crossdockdoors_count': 'docks',
+               'buildings_physical_characteristics_doors_dockhighdoors_count': 'dockhigh_doors',
+               'buildings_physical_characteristics_doors_gradeleveldoors_count': 'drivein_doors',
+               'buildings_physical_characteristics_doors_raildoors_count': 'rail_doors',
+               'buildings_physical_characteristics_clear_height_min_ft': 'ceil_low',
+               'buildings_physical_characteristics_clear_height_max_ft': 'ceil_high'
               }
 
         nan_cols = ['g_n', 'parking', 'avail', 'ind_avail', 'n_avail', 'a_avail', 'contig', 'sublet', 'lowrent', 'hirent',
@@ -3194,7 +3197,6 @@ class PrepareLogs:
 
             nc_add['survdate'] = ''.format(self.currmon, '15', self.curryr)
             nc_add['source'] = 'nc no surv'
-            nc_add['month'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.month
 
             nc_add['leg'] = 'no'
         
