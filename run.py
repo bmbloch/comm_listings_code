@@ -330,7 +330,7 @@ def get_dicts():
     
     sector_map = {'off': {'sector': ['Off'], 'prefix': 'O', 'category': ['office', 'government'], 'subcategory': ['general', 'office', 'corporate_facility', 'financial']},
                    'ind': {'sector': ['Dis', 'Flx'], 'prefix': 'I', 'category': ['industrial'], 'subcategory': ['warehouse_distribution', 'warehouse_office', 'warehouse_flex']},
-                   'ret': {'sector': ['Ret'], 'prefix': 'R', 'category': ['retail'], 'subcategory': ['neighborhood_grocery_anchor', 'neighborhood_center', 'strip_center_anchored', 'strip_center', 'big_box', 'community_specialty', 'retail']}
+                   'ret': {'sector': ['Ret'], 'prefix': 'R', 'category': ['retail'], 'subcategory': ['neighborhood_grocery_anchor', 'neighborhood_center', 'strip_center_anchored', 'strip_center', 'community_specialty', 'retail']}
                   }
     space_map = {'ind': ['industrial', 'flex_r_and_d', 'life_science', 'office'],
                  'off': ['office'],
