@@ -2051,7 +2051,7 @@ class PrepareLogs:
         elif self.sector == "ind" or self.sector == "ret":
             test_data['max_term'] = np.where((test_data['count_term_N'] == test_data['count_term_G']) & (test_data['count_term_G'] > 0), 'N', test_data['max_term'])
         test_data['rent_basis'] = test_data['max_term']
-
+        
         if self.sector == "off":
             temp = test_data.copy()
             temp = temp[temp['type2'] == 'T']
@@ -2979,44 +2979,48 @@ class PrepareLogs:
         if len(d_prop) == 0 and self.home[0:2] == 's3':
             logging.info('Loading D_Property...')
             logging.info('\n')
-            cursor.execute("""select property_source_id, 
-                            property_catylist_nc_id, 
-                            property_reis_rc_id, 
-                            property_er_id, 
-                            property_er_to_foundation_ids_list,
-                            category, 
-                            subcategory, 
-                            geospatial_metropolitan_statistical_area, 
-                            geospatial_submarket_id, 
-                            property_name, 
-                            location_address_street_address,
-                            location_address_locality,
-                            location_address_region,
-                            location_address_postal_code,
-                            location_county,
-                            location_geopoint_latitude,
-                            location_geopoint_longitude,
-                            housing_type,
-                            retail_center_type,
-                            buildings_condominiumized,
-                            buildings_physical_characteristics_number_of_floors,
-                            buildings_number_of_buildings,
-                            buildings_physical_characteristics_clear_height_max_ft,
-                            buildings_physical_characteristics_clear_height_min_ft,
-                            buildings_physical_characteristics_doors_crossdockdoors_count,
-                            buildings_physical_characteristics_doors_dockhighdoors_count,
-                            buildings_physical_characteristics_doors_gradeleveldoors_count,
-                            buildings_physical_characteristics_doors_raildoors_count,
-                            buildings_size_gross_sf,
-                            buildings_size_rentable_sf,
-                            occupancy_number_of_units,
-                            occupancy_owner_occupied,
-                            occupancy_type,
-                            parcel_fips,
-                            buildings_construction_year_built,
-                            buildings_construction_expected_completion_date
-                            from dm.d_property
-                            where buildings_construction_year_built >= {} and buildings_building_status = 'EXISTING'""".format(self.curryr - 1))
+            cursor.execute("""select dp.property_source_id, 
+                            dp.property_catylist_nc_id,
+                            dp.property_reis_rc_id, 
+                            dp.property_er_id, 
+                            dp.property_er_to_foundation_ids_list,
+                            dp.category, 
+                            dp.subcategory, 
+                            dp.property_geo_msa_code, 
+                            dp.property_geo_subid, 
+                            dp.property_name, 
+                            dp.location_address_street_address,
+                            dp.location_address_locality,
+                            dp.location_address_region,
+                            dp.location_address_postal_code,
+                            dp.location_county,
+                            dp.location_geopoint_latitude,
+                            dp.location_geopoint_longitude,
+                            dp.housing_type,
+                            dp.retail_center_type,
+                            dp.buildings_condominiumized,
+                            dp.buildings_physical_characteristics_number_of_floors,
+                            dp.buildings_number_of_buildings,
+                            dp.buildings_physical_characteristics_clear_height_max_ft,
+                            dp.buildings_physical_characteristics_clear_height_min_ft,
+                            dp.buildings_physical_characteristics_doors_crossdockdoors_count,
+                            dp.buildings_physical_characteristics_doors_dockhighdoors_count,
+                            dp.buildings_physical_characteristics_doors_gradeleveldoors_count,
+                            dp.buildings_physical_characteristics_doors_raildoors_count,
+                            dp.buildings_size_gross_sf,
+                            dp.buildings_size_rentable_sf,
+                            dp.occupancy_number_of_units,
+                            dp.occupancy_owner_occupied,
+                            dp.occupancy_type,
+                            dp.parcel_fips,
+                            dp.buildings_construction_year_built,
+                            dp.buildings_construction_expected_completion_date,
+                            sbu.building_office_use_size_sf,
+                            sbu.building_industrial_use_size_sf,
+                            sbu.building_retail_use_size_sf
+                            from consumption.v_d_property dp
+                            left join consumption.v_property_building_use_size sbu on dp.property_source_id = sbu.property_source_id
+                            where dp.buildings_construction_year_built >= 2021 and dp.buildings_building_status = 'EXISTING'""".format(self.curryr - 1))
             d_prop: pd.DataFrame = cursor.fetch_dataframe()
             d_prop.replace([None], np.nan, inplace=True)
             d_prop = d_prop.drop_duplicates('property_source_id')
@@ -3038,7 +3042,7 @@ class PrepareLogs:
             nc_add[col] = nc_add[col].str.lower()
         
         null_to_string = ['occupancy_type', 'category', 'subcategory', 'property_source_id', 'property_reis_rc_id',
-                          'property_catylist_nc_id', 'property_er_to_foundation_ids_list', 'geospatial_metropolitan_statistical_area', 
+                          'property_catylist_nc_id', 'property_er_to_foundation_ids_list', 'property_geo_msa_code', 
                           'property_name', 'location_address_street_address', 'location_address_locality', 'location_address_region',
                           'location_address_region', 'location_county', 'housing_type', 'retail_center_type']
         
@@ -3060,11 +3064,11 @@ class PrepareLogs:
         nc_add = nc_add[nc_add['in_log'].isnull() == True]
         
         if self.sector == "off":
-            size_by_use = 'building_office_size_sf'
+            size_by_use = 'building_office_use_size_sf'
         elif self.sector == "ind":
-            size_by_use = "building_industrial_size_sf"
+            size_by_use = "building_industrial_use_size_sf"
         elif self.sector == "ret":
-            size_by_use = "building_retail_size_sf"
+            size_by_use = "building_retail_use_size_sf"
             
             
         # need size by use fields in d_prop for mixed use cases
@@ -3074,8 +3078,8 @@ class PrepareLogs:
         
         if self.sector == "ind":
             nc_add['drop'] = np.where((nc_add['subcategory'] == 'warehouse_office'), True, False)
-            nc_add['drop'] = np.where((nc_add['subcategory'] == 'warehouse_office') & (nc_add['building_office_size_sf'].isnull() == False), False, nc_add['drop'])
-            nc_add['drop'] = np.where((nc_add['subcategory'] == '') & (nc_add['building_office_size_sf'].isnull() == True), True, nc_add['drop'])
+            nc_add['drop'] = np.where((nc_add['subcategory'] == 'warehouse_office') & (nc_add['building_office_use_size_sf'].isnull() == False), False, nc_add['drop'])
+            nc_add['drop'] = np.where((nc_add['subcategory'] == '') & (nc_add['building_office_use_size_sf'].isnull() == True), True, nc_add['drop'])
             nc_add = nc_add[nc_add['drop'] == False]
         if self.sector == "ret":
             nc_add = nc_add[nc_add['retail_center_type'] == '']
@@ -3092,13 +3096,13 @@ class PrepareLogs:
             nc_add = nc_add[(nc_add['size'].isnull() == False)]
         
         if self.sector == "ind":
-            nc_add['off_perc'] = nc_add['building_office_size_sf'] / nc_add['size']
+            nc_add['off_perc'] = nc_add['building_office_use_size_sf'] / nc_add['size']
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
         
         nc_add = nc_add[(nc_add['occupancy_owner_occupied'].isnull() == True) | (nc_add['occupancy_owner_occupied'] == False)]
         
-        nc_add = nc_add[(nc_add['geospatial_metropolitan_statistical_area'] != '') & (nc_add['geospatial_submarket_id'].isnull() == False)]
+        nc_add = nc_add[(nc_add['property_geo_msa_code'] != '') & (nc_add['property_geo_subid'].isnull() == False)]
         
         temp['realid'] = temp['realid'].astype(str)
         log_ids = list(temp.drop_duplicates('realid')['realid'])
@@ -3126,27 +3130,27 @@ class PrepareLogs:
         nc_add['month'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.month
         nc_add = nc_add[nc_add['month'].isnull() == False]
 
-        rename_cols = {'geospatial_metropolitan_statistical_area': 'metcode',
-               'geospatial_submarket_id': 'subid',
-               'property_name': 'propname',
-               'location_address_street_address': 'address',
-               'location_address_locality': 'city',
-               'location_address_postal_code':'zip',
-               'location_county': 'county',
-               'location_address_region': 'state',
-               'buildings_construction_year_built': 'year',
-               'buildings_physical_characteristics_number_of_floors': 'flrs',
-               'buildings_number_of_buildings': 'bldgs',
-               'location_geopoint_longitude': 'x',
-               'location_geopoint_latitude': 'y',
-               'parcel_fips': 'fipscode',
-               'buildings_physical_characteristics_doors_crossdockdoors_count': 'docks',
-               'buildings_physical_characteristics_doors_dockhighdoors_count': 'dockhigh_doors',
-               'buildings_physical_characteristics_doors_gradeleveldoors_count': 'drivein_doors',
-               'buildings_physical_characteristics_doors_raildoors_count': 'rail_doors',
-               'buildings_physical_characteristics_clear_height_min_ft': 'ceil_low',
-               'buildings_physical_characteristics_clear_height_max_ft': 'ceil_high'
-              }
+        rename_cols = {'property_geo_msa_code': 'metcode',
+                       'property_geo_subid': 'subid',
+                       'property_name': 'propname',
+                       'location_address_street_address': 'address',
+                       'location_address_locality': 'city',
+                       'location_address_postal_code':'zip',
+                       'location_county': 'county',
+                       'location_address_region': 'state',
+                       'buildings_construction_year_built': 'year',
+                       'buildings_physical_characteristics_number_of_floors': 'flrs',
+                       'buildings_number_of_buildings': 'bldgs',
+                       'location_geopoint_longitude': 'x',
+                       'location_geopoint_latitude': 'y',
+                       'parcel_fips': 'fipscode',
+                       'buildings_physical_characteristics_doors_crossdockdoors_count': 'docks',
+                       'buildings_physical_characteristics_doors_dockhighdoors_count': 'dockhigh_doors',
+                       'buildings_physical_characteristics_doors_gradeleveldoors_count': 'drivein_doors',
+                       'buildings_physical_characteristics_doors_raildoors_count': 'rail_doors',
+                       'buildings_physical_characteristics_clear_height_min_ft': 'ceil_low',
+                       'buildings_physical_characteristics_clear_height_max_ft': 'ceil_high'
+                      }
 
         nan_cols = ['g_n', 'parking', 'avail', 'ind_avail', 'n_avail', 'a_avail', 'contig', 'sublet', 'lowrent', 'hirent',
                    'avrent', 'ind_avrent', 'ind_lowrent', 'ind_hirent', 'off_lowrent', 'off_hirent', 'off_avrent', 'n_avrent', 
