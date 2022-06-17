@@ -338,7 +338,7 @@ def get_dicts():
                 }
 
     return consistency_dict, type_dict_all, rename_dict_all, sector_map, space_map
-
+    
 sectors = ['off', 'ind', 'ret']
 curryr = 2022
 currmon = 5
@@ -540,7 +540,7 @@ try:
 
                         # Check that the values for each column are within an acceptable range
                         test_data = prepLogs.range_check(test_data)
-                        
+
                         # Checking if legacy reis ids match on structural points.
                         # Note: There may have been changes on the structural side in RDMA post migration from Foundation, so just because it doesnt match doesnt mean its wrong...
                         logging.info("Conducting structural check...")

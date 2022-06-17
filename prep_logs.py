@@ -3024,7 +3024,7 @@ class PrepareLogs:
                             sbu.building_retail_use_size_sf
                             from consumption.v_d_property dp
                             left join consumption.v_property_building_use_size sbu on dp.property_source_id = sbu.property_source_id
-                            where dp.buildings_construction_year_built >= 2021 and dp.buildings_building_status = 'EXISTING'""".format(self.curryr - 1))
+                            where dp.buildings_construction_year_built >= {} and dp.buildings_building_status = 'EXISTING'""".format(self.curryr - 1))
             d_prop: pd.DataFrame = cursor.fetch_dataframe()
             d_prop.replace([None], np.nan, inplace=True)
             d_prop = d_prop.drop_duplicates('property_source_id')
