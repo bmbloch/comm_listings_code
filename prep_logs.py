@@ -106,6 +106,8 @@ class PrepareLogs:
 
     def load_incrementals(self, sector, type_dict_all, rename_dict_all, consistency_dict, load, test_data_in=pd.DataFrame()):
         if load:
+            if self.home[0:2] != 's3':
+                print("Ensure d_prop.csv input file has been refreshed!!!")
             if self.home[0:2] == 's3' and self.live_load:
                 logging.info('Querying View...')
                 logging.info('\n')
