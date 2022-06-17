@@ -2332,6 +2332,8 @@ class PrepareLogs:
             test_data['avail_temp'] = test_data['avail_temp'].fillna(0)
             test_data['all_avail_check'] = np.where((test_data['sublet_temp'] + test_data['avail_temp'] > test_data[size]) & (test_data['avail_check'] == 0), 1, 0)
 
+            test_data[avail] = np.where((test_data[avail] > test_data[size]), test_data[size], test_data[avail])
+            
             test_data['avrent_check'] = np.where((test_data[lowrent].isnull() == False) & (test_data[hirent].isnull() == False) & (round((test_data[lowrent] + test_data[hirent]) / 2,2) != round(test_data[rent], 2)), 1, 0)
             test_data['avrent_check'] = np.where((test_data[lowrent].isnull() == False) & (test_data[hirent].isnull() == True) & (test_data[lowrent] != test_data[rent]), 1, test_data['avrent_check'])
             test_data['avrent_check'] = np.where((test_data[lowrent].isnull() == True) & (test_data[hirent].isnull() == False) & (test_data[hirent] != test_data[rent]), 1, test_data['avrent_check'])
@@ -2344,6 +2346,8 @@ class PrepareLogs:
         elif self.sector == "ret":
             for prefix in ['a', 'n']:
                 test_data[prefix + '_avail_check'] = np.where((test_data[prefix + '_avail'] > test_data[prefix + '_size']), 1, 0)
+                
+                test_data[prefix + '_avail'] = np.where((test_data[prefix + '_avail'] > test_data[prefix + '_size']), test_data[prefix + '_size'], test_data[prefix + '_avail'])
                 
                 test_data[prefix + '_avrent_check'] = np.where((test_data[prefix + '_lorent'].isnull() == False) & (test_data[prefix + '_hirent'].isnull() == False) & (round((test_data[prefix + '_lorent'] + test_data[prefix + '_hirent']) / 2,2) != round(test_data[prefix + '_avrent'], 2)), 1, 0)
                 test_data[prefix + '_avrent_check'] = np.where((test_data[prefix + '_lorent'].isnull() == False) & (test_data[prefix + '_hirent'].isnull() == True) & (test_data[prefix + '_lorent'] != test_data[prefix + '_avrent']), 1, test_data[prefix + '_avrent_check'])
