@@ -386,7 +386,7 @@ temp['diff'] = temp['count_rows_df'] - temp['count_rows_log']
 temp['perc_diff'] = abs((temp['count_rows_df'] - temp['count_rows_log'])) / temp['count_rows_log']
 if temp[(temp['count_rows_log'] > 3000) | (temp['count_rows_df'] == 0)]['perc_diff'].max() > 0.1 or temp['perc_diff'].max() > 0.5:
     print("There is a significant difference in historical rows between the legacy download and the preprocessed logs")
-temp[['metcode', 'count_rows_log', 'count_rows_df', 'diff', 'perc_diff']].sort_values(by=['perc_diff'], ascending=[False]).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/diff_log_report.csv', index=False)
+temp[['metcode', 'count_rows_log', 'count_rows_df', 'diff', 'perc_diff']].sort_values(by=['perc_diff'], ascending=[False]).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/diff_log_report_{}m{}.csv'.format(curryr, currmon), index=False)
 
 df = df.rename(columns={'property_source_id': 'id'})
 df = df[log_in.columns]
