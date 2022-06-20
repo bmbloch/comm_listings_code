@@ -216,7 +216,7 @@ temp['reason'] = 'Property is Affordable Housing'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
 df = df[~(df['housing_type'].isin(['affordable', 'age_restricted'])) | (df['mixed_income'])]    
-print('Property count after removing non mixed income affordable: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
+print('Property count after removing non mixed income affordable properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
 temp = temp[temp['housing_type'] == 'student']
