@@ -26,6 +26,7 @@ from os import listdir
 from os.path import isfile, join
 import os
 import multiprocessing as mp
+import decimal
 
 import boto3
 import base64
@@ -126,6 +127,10 @@ class PrepareLogs:
                 cursor.execute("SELECT * FROM consumption.v_catylisturt_listing_to_econ")
                 test_data_in: pd.DataFrame = cursor.fetch_dataframe()
                 test_data_in.replace([None], np.nan, inplace=True)
+
+                conv_decimal = list(temp.loc[:,temp.iloc[0].apply(type)==decimal.Decimal].columns)
+                for col in conv_decimal:
+                    test_data_in[col] = test_data_in[col].astype(float)
 
             else:
                 if self.home[0:2] == 's3':
@@ -3213,6 +3218,9 @@ class PrepareLogs:
             nc_add['source'] = 'nc no surv'
 
             nc_add['leg'] = 'no'
+
+            for col, rename in rename_cols.items():
+                nc_add.rename(columns={col: rename}, inplace=True)
         
             for col in nc_add:
                 if col not in combo.columns:
@@ -3220,7 +3228,7 @@ class PrepareLogs:
             
             combo = combo.append(nc_add, ignore_index=True)
         
-        nc_add.to_csv('{}/OutputFiles/{}/logic_logs/nc_additions_{}m{}.csv'.format(self.home, self.sector, self.curryr, self.currmon), index=False)
+        nc_add[combo.columns].to_csv('{}/OutputFiles/{}/logic_logs/nc_additions_{}m{}.csv'.format(self.home, self.sector, self.curryr, self.currmon), index=False)
         
         logging.info('{:,} newly completed properties without surveys were added to the log'.format(len(nc_add)))
         logging.info('\n')
