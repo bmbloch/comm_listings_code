@@ -101,8 +101,6 @@ is_structural = ['propname', 'metcode', 'subid', 'address', 'city', 'county', 's
 
 df_in['survey_legacy_data_source'] = np.where((df_in['survey_legacy_data_source'].isnull() == True), '', df_in['survey_legacy_data_source'])
 
-display(pd.DataFrame(df_in.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
-
 df = df_in.copy()
 drop_log = pd.DataFrame()
 
@@ -137,6 +135,8 @@ df['fipscode'] = df['fipscode'].astype(float)
 
 df['free_rent'] = round(df['free_rent'],3)
 
+display(pd.DataFrame(df_in.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
+
 print("Initial row count: {:,}".format(len(df)))
 print('Initial unique property count: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 df['survdate_d'] = pd.to_datetime(df['survdate'])
@@ -170,7 +170,7 @@ del temp
 df = df[(df['survey_legacy_data_source'] != 'ApartmentData.com') | (df['valid'] == 1) | (df['property_reis_rc_id'] == '')]
 print('Property count after removing non published aptdata.com surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()))
+display(pd.DataFrame(df_in.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
 if len(df[df['survdate'].isnull() == True]) > 0:
     print("There are rows that are missing a survey date")
