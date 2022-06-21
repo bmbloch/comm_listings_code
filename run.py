@@ -557,17 +557,9 @@ try:
                             logging.info("\n")
 
                         # append incrementals to historical log file
-                        combo, test_data, stop = prepLogs.append_incrementals(test_data, log)
+                        combo, test_data, stop = prepLogs.append_incrementals(test_data, log, load)
 
                         if not stop:
-                            
-                            # Add in new completions that do not have a listing or survey
-                            if load and live_load:
-                                d_prop, combo = append_nc_completions(combo)
-                            else:
-                                if load:
-                                    d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(get_home()), na_values="", keep_default_na=False)
-                                d_prop, combo = prepLogs.append_nc_completions(combo, d_prop)
 
                             # Drop the extra fields used for debugging purposes
                             combo = prepLogs.select_cols(combo)

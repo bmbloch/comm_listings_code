@@ -109,7 +109,6 @@ class PrepareLogs:
         if load:
             if self.home[0:2] != 's3':
                 print("Ensure d_prop.csv input file has been refreshed!!!")
-                print("\n")
             if self.home[0:2] == 's3' and self.live_load:
                 logging.info('Querying View...')
                 logging.info('\n')
@@ -127,7 +126,7 @@ class PrepareLogs:
                 cursor.execute("SELECT * FROM consumption.v_catylisturt_listing_to_econ")
                 test_data_in: pd.DataFrame = cursor.fetch_dataframe()
                 test_data_in.replace([None], np.nan, inplace=True)
-
+                
                 conv_decimal = list(temp.loc[:,temp.iloc[0].apply(type)==decimal.Decimal].columns)
                 for col in conv_decimal:
                     test_data_in[col] = test_data_in[col].astype(float)
@@ -2861,130 +2860,6 @@ class PrepareLogs:
                     log_aligned.drop(['renov_log'], axis=1)
                     
         return inc, log_aligned
-
-    
-    def append_incrementals(self, test_data, log):
-
-        logging.info('Appending historical REIS logs...')
-        logging.info('\n')
-        
-        log['leg'] = 'yes'   
-        test_data = test_data[self.orig_cols + ['leg', 'property_source_id']]
-        
-        
-        temp_aggreg = pd.DataFrame()
-        log_aligned = log.copy()
-        
-        root = "{}/OutputFiles/{}/snapshots".format(self.home, self.sector)
-        if self.home[0:2] == 's3':
-            fs = s3fs.S3FileSystem()
-            dir_list = fs.ls(root)
-            dir_list = [x for x in dir_list if x[-1] != '/']
-            dir_list = [f for f in dir_list if len(f.split('/')[-1].split('.csv')[0]) == 19 or len(f.split('/')[-1].split('.csv')[0]) == 20]
-        else:
-            dir_list = [f for f in listdir(root) if isfile(join(root, f))]
-            dir_list = [f for f in dir_list if len(f.split('/')[-1].split('.csv')[0]) == 19 or len(f.split('/')[-1].split('.csv')[0]) == 20]
-
-        if self.currmon < 10:
-            end_val = 6
-        else:
-            end_val = 7
-        dir_list = [x for x in dir_list if x.split('/')[-1][0:end_val] != str(self.curryr) + 'm' + str(self.currmon)]
-
-        for file in dir_list:
-            if self.home[0:2] == 's3': 
-                file_read = '{}{}'.format(self.prefix, file)
-            else:
-                file_read = root + '/' + file
-            logging.info("Appending historical incrementals for {}".format(file.split('/')[-1].split('_')[0]))
-            temp = pd.read_csv(file_read, encoding = 'utf-8',  na_values= "", keep_default_na = False,
-                                   dtype=self.dtypes)
-            temp['leg'] = 'yes'
-            temp_aggreg = temp_aggreg.append(temp, ignore_index=False)
-
-        for key, value in self.type_dict.items():
-            if value['structural']:
-                temp_aggreg['count'] = temp_aggreg.groupby('realid')[key].transform('nunique')
-                temp_aggreg['survdate_dt'] = pd.to_datetime(temp_aggreg['survdate'])
-                temp_aggreg.sort_values(by=['survdate_dt'], ascending=[False], inplace=True)
-                temp_aggreg['cumcount'] = temp_aggreg.groupby('realid')['realid'].transform('cumcount')
-                temp_aggreg[key] = np.where((temp_aggreg['count'] > 1) & (temp_aggreg['cumcount'] > 0), np.nan, temp_aggreg[key])
-                temp_aggreg[key] = temp_aggreg.groupby('realid')[key].bfill()
-                temp_aggreg[key] = temp_aggreg.groupby('realid')[key].ffill()
-
-        if len(dir_list) > 0:
-            temp_aggreg, log_aligned = self.align_structurals(temp_aggreg, log_aligned)
-            log_aligned = log_aligned.append(temp_aggreg, ignore_index=True)
-
-        if len(dir_list) == 0:
-            logging.info("No historical incremental files to load")
-        logging.info("\n")
-
-
-        test_data, log_aligned = self.align_structurals(test_data, log_aligned)
-
-        if len(test_data) > 0:
-            self.val_check(test_data)
-            self.null_check(test_data)
-
-        if not self.stop:
-            
-            if self.sector == "off":
-                avail = 'avail'
-                rent = 'avrent'
-            elif self.sector == "ind":
-                avail = 'ind_avail'
-                rent = 'ind_avrent'
-            elif self.sector == "ret":
-                avail = 'n_avail'
-                rent = 'n_avrent'
-            
-            logging.info("Final number of {} properties added to pool from incrementals: {:,}".format(self.sector, len(test_data)))
-            logging.info("Total number of Vacancy observations added to pool from incrementals: {:,}".format(len(test_data[(test_data[avail].isnull() == False) & (test_data[avail] != '')])))
-            logging.info("Total number of Rent observations added to pool from incrementals: {:,}".format(len(test_data[(test_data[rent].isnull() == False) & (test_data[rent] != '')])))
-            if self.sector == "ret":
-                logging.info("Total number of Anchor Vacancy observations added to pool from incrementals: {:,}".format(len(test_data[(test_data['a_avail'].isnull() == False) & (test_data['a_avail'] != '')])))
-                logging.info("Total number of Anchor Rent observations added to pool from incrementals: {:,}".format(len(test_data[(test_data['a_avrent'].isnull() == False) & (test_data['a_avrent'] != '')])))
-            logging.info("\n")
-            
-            combo = test_data.copy()
-            combo['leg'] = 'no'
-            combo = combo.append(log_aligned, ignore_index=True)
-            combo = combo.reset_index(drop=True)
-            
-            test = combo.copy()
-            test1 = test_data.copy()
-            test1['in_test'] = 1
-            test = test.join(test1.drop_duplicates('realid').set_index('realid')[['in_test']], on='realid')
-            test = test[test['in_test'].isnull() == False]
-            for key, value in self.type_dict.items():
-                if key == "renov":
-                    test['count_renov'] = test[(test['leg'] == 'yes') & (test['renov'] != -1)].drop_duplicates(['realid', 'renov']).groupby('realid')['realid'].transform('count')
-                    test['count_renov'] = test.groupby('realid')['count_renov'].bfill()
-                    test['count_renov'] = test.groupby('realid')['count_renov'].ffill()
-                    test['count_renov'] = test['count_renov'].fillna(0)
-                if value['structural']:
-                    temp = test.copy()
-                    temp[key] = np.where(temp[key].isnull() == True, 'temp', temp[key])
-                    temp['count'] = temp.groupby(['realid'])[key].transform('nunique')
-                    if key == 'renov':
-                        temp = temp[(temp['count_renov'] != temp['count'])]
-                    if len(temp[temp['count'] != 1]) > 0:
-                        logging.info('Lack of structural consistency within an ID for {}'.format(key))
-                        logging.info("\n")
-                        self.stop = True
-                        display(temp[temp['count'] != 1][['realid', key, 'count']].sort_values(by='realid').drop_duplicates(['realid', key]).head(10))
-                        
-            if not self.stop:
-                test_data = test_data[self.orig_cols + ['property_source_id', 'leg']]
-                test_data.to_csv('{}/OutputFiles/{}/snapshots/{}m{}_snapshot_{}.csv'.format(self.home, self.sector, self.curryr, self.currmon, self.sector), index=False)
-                
-                combo.sort_values(by=['metcode', 'realid'], ascending=[True, True], inplace=True)
-            
-        else:
-            combo = pd.DataFrame()
-        
-        return combo, test_data, self.stop
     
     def append_nc_completions(self, combo, d_prop=pd.DataFrame()):
         
@@ -3176,7 +3051,7 @@ class PrepareLogs:
                 if col in self.type_dict.keys():
                     nc_add[col] = np.nan
 
-            nc_add['realid'] = np.where((nc_add['property_soruce_id'].str.isdigit()), 'a' + nc_add['property_source_id'].astype(str), nc_add['property_source_id'])
+            nc_add['realid'] = np.where((nc_add['property_source_id'].str.isdigit()), 'a' + nc_add['property_source_id'].astype(str), nc_add['property_source_id'])
             nc_add['phase'] = 0
             if self.sector == "off":
                 nc_add['type2'] = np.where((nc_add['occupancy_type'].isin(['single_tenant', ''])), 'T', 'O')
@@ -3218,7 +3093,7 @@ class PrepareLogs:
             nc_add['source'] = 'nc no surv'
 
             nc_add['leg'] = 'no'
-
+            
             for col, rename in rename_cols.items():
                 nc_add.rename(columns={col: rename}, inplace=True)
         
@@ -3227,13 +3102,147 @@ class PrepareLogs:
                     nc_add = nc_add.drop([col],axis=1)
             
             combo = combo.append(nc_add, ignore_index=True)
-
+        
         nc_add[[x for x in combo.columns if x in nc_add.columns]].to_csv('{}/OutputFiles/{}/logic_logs/nc_additions_{}m{}.csv'.format(self.home, self.sector, self.curryr, self.currmon), index=False)
         
         logging.info('{:,} newly completed properties without surveys were added to the log'.format(len(nc_add)))
         logging.info('\n')
         
-        return d_prop, combo
+        return d_prop, combo, nc_add
+
+    
+    def append_incrementals(self, test_data, log, load):
+
+        logging.info('Appending historical REIS logs...')
+        logging.info('\n')
+        
+        log['leg'] = 'yes'   
+        test_data = test_data[self.orig_cols + ['leg', 'property_source_id']]
+        
+        
+        temp_aggreg = pd.DataFrame()
+        log_aligned = log.copy()
+        
+        root = "{}/OutputFiles/{}/snapshots".format(self.home, self.sector)
+        if self.home[0:2] == 's3':
+            fs = s3fs.S3FileSystem()
+            dir_list = fs.ls(root)
+            dir_list = [x for x in dir_list if x[-1] != '/']
+            dir_list = [f for f in dir_list if len(f.split('/')[-1].split('.csv')[0]) == 19 or len(f.split('/')[-1].split('.csv')[0]) == 20]
+        else:
+            dir_list = [f for f in listdir(root) if isfile(join(root, f))]
+            dir_list = [f for f in dir_list if len(f.split('/')[-1].split('.csv')[0]) == 19 or len(f.split('/')[-1].split('.csv')[0]) == 20]
+
+        if self.currmon < 10:
+            end_val = 6
+        else:
+            end_val = 7
+        dir_list = [x for x in dir_list if x.split('/')[-1][0:end_val] != str(self.curryr) + 'm' + str(self.currmon)]
+
+        for file in dir_list:
+            if self.home[0:2] == 's3': 
+                file_read = '{}{}'.format(self.prefix, file)
+            else:
+                file_read = root + '/' + file
+            logging.info("Appending historical incrementals for {}".format(file.split('/')[-1].split('_')[0]))
+            temp = pd.read_csv(file_read, encoding = 'utf-8',  na_values= "", keep_default_na = False,
+                                   dtype=self.dtypes)
+            temp['leg'] = 'yes'
+            temp_aggreg = temp_aggreg.append(temp, ignore_index=False)
+
+        for key, value in self.type_dict.items():
+            if value['structural']:
+                temp_aggreg['count'] = temp_aggreg.groupby('realid')[key].transform('nunique')
+                temp_aggreg['survdate_dt'] = pd.to_datetime(temp_aggreg['survdate'])
+                temp_aggreg.sort_values(by=['survdate_dt'], ascending=[False], inplace=True)
+                temp_aggreg['cumcount'] = temp_aggreg.groupby('realid')['realid'].transform('cumcount')
+                temp_aggreg[key] = np.where((temp_aggreg['count'] > 1) & (temp_aggreg['cumcount'] > 0), np.nan, temp_aggreg[key])
+                temp_aggreg[key] = temp_aggreg.groupby('realid')[key].bfill()
+                temp_aggreg[key] = temp_aggreg.groupby('realid')[key].ffill()
+
+        if len(dir_list) > 0:
+            temp_aggreg, log_aligned = self.align_structurals(temp_aggreg, log_aligned)
+            log_aligned = log_aligned.append(temp_aggreg, ignore_index=True)
+
+        if len(dir_list) == 0:
+            logging.info("No historical incremental files to load")
+        logging.info("\n")
+
+
+        test_data, log_aligned = self.align_structurals(test_data, log_aligned)
+
+        if len(test_data) > 0:
+            self.val_check(test_data)
+            self.null_check(test_data)
+
+        if not self.stop:
+            
+            if self.sector == "off":
+                avail = 'avail'
+                rent = 'avrent'
+            elif self.sector == "ind":
+                avail = 'ind_avail'
+                rent = 'ind_avrent'
+            elif self.sector == "ret":
+                avail = 'n_avail'
+                rent = 'n_avrent'
+            
+            logging.info("Final number of {} properties added to pool from incrementals: {:,}".format(self.sector, len(test_data)))
+            logging.info("Total number of Vacancy observations added to pool from incrementals: {:,}".format(len(test_data[(test_data[avail].isnull() == False) & (test_data[avail] != '')])))
+            logging.info("Total number of Rent observations added to pool from incrementals: {:,}".format(len(test_data[(test_data[rent].isnull() == False) & (test_data[rent] != '')])))
+            if self.sector == "ret":
+                logging.info("Total number of Anchor Vacancy observations added to pool from incrementals: {:,}".format(len(test_data[(test_data['a_avail'].isnull() == False) & (test_data['a_avail'] != '')])))
+                logging.info("Total number of Anchor Rent observations added to pool from incrementals: {:,}".format(len(test_data[(test_data['a_avrent'].isnull() == False) & (test_data['a_avrent'] != '')])))
+            logging.info("\n")
+            
+            combo = test_data.copy()
+            combo['leg'] = 'no'
+            combo = combo.append(log_aligned, ignore_index=True)
+            combo = combo.reset_index(drop=True)
+            
+            test = combo.copy()
+            test1 = test_data.copy()
+            test1['in_test'] = 1
+            test = test.join(test1.drop_duplicates('realid').set_index('realid')[['in_test']], on='realid')
+            test = test[test['in_test'].isnull() == False]
+            for key, value in self.type_dict.items():
+                if key == "renov":
+                    test['count_renov'] = test[(test['leg'] == 'yes') & (test['renov'] != -1)].drop_duplicates(['realid', 'renov']).groupby('realid')['realid'].transform('count')
+                    test['count_renov'] = test.groupby('realid')['count_renov'].bfill()
+                    test['count_renov'] = test.groupby('realid')['count_renov'].ffill()
+                    test['count_renov'] = test['count_renov'].fillna(0)
+                if value['structural']:
+                    temp = test.copy()
+                    temp[key] = np.where(temp[key].isnull() == True, 'temp', temp[key])
+                    temp['count'] = temp.groupby(['realid'])[key].transform('nunique')
+                    if key == 'renov':
+                        temp = temp[(temp['count_renov'] != temp['count'])]
+                    if len(temp[temp['count'] != 1]) > 0:
+                        logging.info('Lack of structural consistency within an ID for {}'.format(key))
+                        logging.info("\n")
+                        self.stop = True
+                        display(temp[temp['count'] != 1][['realid', key, 'count']].sort_values(by='realid').drop_duplicates(['realid', key]).head(10))
+                        
+            if load and self.live_load:
+                d_prop, combo, nc_add = self.append_nc_completions(combo)
+            else:
+                if load:
+                    d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(self.home), na_values="", keep_default_na=False)
+                d_prop, combo, nc_add = self.append_nc_completions(combo, d_prop)
+            
+            if not self.stop:
+                test_data = test_data[self.orig_cols + ['property_source_id', 'leg']]
+                if len(nc_add) > 0:
+                    test_data = test_data.append(nc_add[[x for x in test_data.columns if x in nc_add.columns]], ignore_index=False)
+                test_data.to_csv('{}/OutputFiles/{}/snapshots/{}m{}_snapshot_{}.csv'.format(self.home, self.sector, self.curryr, self.currmon, self.sector), index=False)
+                
+                combo.sort_values(by=['metcode', 'realid'], ascending=[True, True], inplace=True)
+            
+        else:
+            combo = pd.DataFrame()
+        
+        return combo, test_data, self.stop, d_prop
+    
     
     def select_cols(self, combo):
 
