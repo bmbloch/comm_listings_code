@@ -439,7 +439,7 @@ if temp[(temp['count_rows_log'] > 3000) | (temp['count_rows_df'] == 0)]['perc_di
 temp[['metcode', 'count_rows_log', 'count_rows_df', 'diff', 'perc_diff']].sort_values(by=['perc_diff'], ascending=[False]).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/diff_log_report_{}m{}.csv'.format(curryr, currmon), index=False)
 
 df = df.rename(columns={'property_source_id': 'id'})
-df = df[log_in.columns + ['property_reis_rc_id']]
+df = df[list(log_in.columns) + ['property_reis_rc_id']]
 
 df['survdate'] = pd.to_datetime(df['survdate']).dt.strftime('%m/%d/%Y')
 
