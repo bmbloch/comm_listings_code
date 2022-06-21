@@ -94,17 +94,17 @@ valid_aptdata = pd.read_csv('/home/central/square/data/zzz-bb-test2/python/catyl
 valid_aptdata['id'] = 'A' + valid_aptdata['id'].astype(str)
 log_in = read_logs()
 
+is_structural = ['propname', 'metcode', 'subid', 'address', 'city', 'county', 'state', 'zip', 'x', 'y', 'flrs', 'year', 
+                 'utilities', 'amenities', 'month', 'status', 'renov', 'type2', 'units0', 'units1', 'units2', 'units3', 
+                 'units4', 'totunits', 'cptv', 'size0', 'size1', 'size2', 'size3', 'size4', 'avgsize', 'estunit', 
+                 'fipscode']
+
 df_in['survey_legacy_data_source'] = np.where((df_in['survey_legacy_data_source'].isnull() == True), '', df_in['survey_legacy_data_source'])
 
 display(pd.DataFrame(df_in.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
 df = df_in.copy()
 drop_log = pd.DataFrame()
-
-is_structural = ['propname', 'metcode', 'subid', 'address', 'city', 'county', 'state', 'zip', 'x', 'y', 'flrs', 'year', 
-                 'utilities', 'amenities', 'month', 'status', 'renov', 'type2', 'units0', 'units1', 'units2', 'units3', 
-                 'units4', 'totunits', 'cptv', 'size0', 'size1', 'size2', 'size3', 'size4', 'avgsize', 'estunit', 
-                 'fipscode']
 
 df['property_reis_rc_id'] = df['property_reis_rc_id_an']
 df['property_reis_rc_id'] = np.where((df['property_reis_rc_id'].str[0] == 'L'), 'A'+ df['property_reis_rc_id'].str[1:], df['property_reis_rc_id'])
