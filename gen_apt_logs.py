@@ -249,6 +249,7 @@ print('Property count after removing properties not linked to REIS ID: {:,}'.for
 test = log_in.copy()
 test['in_log'] = 1
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
+df = df.drop(['in_log'], axis=1)
 df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 temp = df.copy()
 temp = temp[(temp['in_log'].isnull() == True) & ((temp['year'] < curryr - 1) | (temp['month'].isnull() == True))]
