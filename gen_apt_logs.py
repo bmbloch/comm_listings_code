@@ -141,6 +141,7 @@ print("Initial row count: {:,}".format(len(df)))
 print('Initial unique property count: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 df['survdate_d'] = pd.to_datetime(df['survdate'])
 temp = df.copy()
+temp['count_links'] = temp.groupby('property_reis_rc_id')['property_source_id'].transform('nunique')
 temp['count_test'] = temp[temp['survey_legacy_data_source'] == 'REIS_RC_Apt'].groupby('property_source_id')['property_source_id'].transform('count')
 temp['count_test'] = temp.groupby('property_source_id')['count_test'].bfill()
 temp['count_test'] = temp.groupby('property_source_id')['count_test'].ffill()
@@ -150,7 +151,7 @@ temp['count_early'] = temp.groupby('property_source_id')['count_early'].ffill()
 temp['count'] = temp.groupby('property_source_id')['property_source_id'].transform('count')
 temp = temp[((temp['survey_legacy_data_source'] == 'REIS_RC_Apt') & (temp['count'] == temp['count_test'])) | ((temp['survey_legacy_data_source'] == '') & (temp['survdate_d'] < '06/01/2022') & (temp['count'] == temp['count_early']))]
 temp['reason'] = 'No legacy log historical rows, and RDMA survey not true incremental survey'
-drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason', 'count_links']], ignore_index=True)
 del temp
 df = df[(df['survey_legacy_data_source'].isin(['Foundation', 'ApartmentData.com'])) | ((df['survdate_d'] >= '06/01/2022') & (df['survey_legacy_data_source'] == ''))]
 print('Property count after removing test surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
@@ -448,6 +449,12 @@ test = log_in.copy()
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 test['in_log'] = 1
 drop_log = drop_log.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
+drop_log['in_log'] = drop_log['in_log'].fillna(0)
+temp = df.copy()
+temp['property_reis_rc_id'] = 'A' + temp['id'].astype(str)
+temp['in_snap'] = 1
+drop_log = drop_log.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_snap']], on='property_reis_rc_id')
+drop_log['in_snap'] = drop_log['in_snap'].fillna(0)
 drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/drop_log_{}m{}.csv'.format(curryr, currmon), index=False)
 
 for met in log_in['metcode'].unique():
