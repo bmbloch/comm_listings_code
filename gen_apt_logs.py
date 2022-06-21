@@ -452,10 +452,12 @@ test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 test['in_log'] = 1
 drop_log = drop_log.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 drop_log['in_log'] = drop_log['in_log'].fillna(0)
+drop_log['in_log'] = np.where((drop_log['property_reis_rc_id'] == ''), 0, drop_log['in_log'])
 temp = df.copy()
 temp['in_snap'] = 1
 drop_log = drop_log.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_snap']], on='property_reis_rc_id')
 drop_log['in_snap'] = drop_log['in_snap'].fillna(0)
+drop_log['in_snap'] = np.where((drop_log['property_reis_rc_id'] == ''), 0, drop_log['in_snap'])
 drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/drop_log_{}m{}.csv'.format(curryr, currmon), index=False)
 
 df = df.drop(['property_reis_rc_id'], axis=1)
