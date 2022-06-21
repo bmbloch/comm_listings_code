@@ -2861,9 +2861,9 @@ class PrepareLogs:
                     
         return inc, log_aligned
     
-    def append_nc_completions(self, combo, d_prop=pd.DataFrame()):
+    def append_nc_completions(self, combo, d_prop):
         
-        if len(d_prop) == 0 and self.home[0:2] == 's3':
+        if len(d_prop) == 0 and self.home[0:2] == 's3' and self.live_load:
             logging.info('Loading D_Property...')
             logging.info('\n')
             cursor.execute("""select dp.property_source_id, 
@@ -2914,7 +2914,7 @@ class PrepareLogs:
             d_prop.to_csv('{}/InputFiles/d_prop.csv'.format(self.home), index=False)
             
         elif len(d_prop) == 0:
-            d_prop = pd.read_csv('{}/InputFiles/d_prop_{}m{}.csv'.format(self.home, self.curryr, self.currmon), na_values= "", keep_default_na = False)
+            d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(self.home), na_values= "", keep_default_na = False)
           
         nc_add = d_prop.copy()
         
@@ -3111,7 +3111,7 @@ class PrepareLogs:
         return d_prop, combo, nc_add
 
     
-    def append_incrementals(self, test_data, log, load):
+    def append_incrementals(self, test_data, log, load, d_prop):
 
         logging.info('Appending historical REIS logs...')
         logging.info('\n')
@@ -3223,16 +3223,12 @@ class PrepareLogs:
                         self.stop = True
                         display(temp[temp['count'] != 1][['realid', key, 'count']].sort_values(by='realid').drop_duplicates(['realid', key]).head(10))
                         
-            if load and self.live_load:
-                d_prop, combo, nc_add = self.append_nc_completions(combo)
-            else:
-                if load:
-                    d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(self.home), na_values="", keep_default_na=False)
-                d_prop, combo, nc_add = self.append_nc_completions(combo, d_prop)
+            d_prop, combo, nc_add = self.append_nc_completions(combo, d_prop)
             
             if not self.stop:
                 test_data = test_data[self.orig_cols + ['property_source_id', 'leg']]
                 if len(nc_add) > 0:
+                    nc_add['leg'] = False
                     test_data = test_data.append(nc_add[[x for x in test_data.columns if x in nc_add.columns]], ignore_index=False)
                 test_data.to_csv('{}/OutputFiles/{}/snapshots/{}m{}_snapshot_{}.csv'.format(self.home, self.sector, self.curryr, self.currmon, self.sector), index=False)
                 
