@@ -450,7 +450,14 @@ display(pd.DataFrame(drop_log.groupby('reason')['property_source_id'].count()).r
 test = log_in.copy()
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 test['in_log'] = 1
+test1 = test.copy()
+test1['count'] = test1.groupby('property_reis_rc_id')['property_reis_rc_id'].transform('count')
+test1 = test1[(test1['count'] == 1) & (test1['ren0'] == -1) & (test1['ren1'] == -1) & (test1['ren2'] == -1) & (test1['ren3'] == -1) & (test1['ren4'] == -1) & (test1['vac0'] == -1) & (test1['vac1'] == -1) & (test1['vac2'] == -1) & (test1['vac3'] == -1) & (test1['vac4'] == -1) & (df['avail'] == -1) & (df['free_rent'] == -1)]
+test1['has_surv'] = 0
 drop_log = drop_log.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
+drop_log = drop_log.join(test1.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['has_surv']], on='property_reis_rc_id')
+drop_log['has_surv'] = np.where((df['has_surv'].isnull() == True) & (df['in_log'] == 1), 1, drop_log['has_surv'])
+drop_log['has_surv'] = np.where((df['has_surv'].isnull() == True) & (df['in_log'].isnull() == True), 0, drop_log['has_surv'])
 drop_log['in_log'] = drop_log['in_log'].fillna(0)
 drop_log['in_log'] = np.where((drop_log['property_reis_rc_id'] == ''), 0, drop_log['in_log'])
 temp = df.copy()
