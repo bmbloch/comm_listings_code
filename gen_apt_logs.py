@@ -439,6 +439,10 @@ df = df.join(live_subs[live_subs['subid'] == 90].drop_duplicates('metcode').set_
 df['subid'] = np.where((df['tertiary_sub'] == 90), df['tertiary_sub'], df['subid'])
 
 display(pd.DataFrame(drop_log.groupby('reason')['property_source_id'].count()).rename(columns={'property_source_id': 'count'}).sort_values(by=['count'], ascending=[False]))
+test = log_in.copy()
+test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
+test['in_log'] = 1
+drop_log = drop_log.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/drop_log_{}m{}.csv'.format(curryr, currmon), index=False)
 
 for met in log_in['metcode'].unique():
