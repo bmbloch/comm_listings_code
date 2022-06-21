@@ -458,7 +458,9 @@ drop_log = drop_log.join(temp.drop_duplicates('property_reis_rc_id').set_index('
 drop_log['in_snap'] = drop_log['in_snap'].fillna(0)
 drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/drop_log_{}m{}.csv'.format(curryr, currmon), index=False)
 
+df = df.drop(['property_reis_rc_id'], axis=1)
+
 for met in log_in['metcode'].unique():
     logging.info('Saving log for {}'.format(met))
     path = '/home/central/square/data/apt/download/test2022/{}.log'.format(met.lower())
-    df[df['metcode'] == met].drop(['property_reis_rc_id'], axis=1).to_csv(r'{}'.format(path), header=df.columns, index=None, sep=',', mode='w')
+    df[df['metcode'] == met].to_csv(r'{}'.format(path), header=df.columns, index=None, sep=',', mode='w')
