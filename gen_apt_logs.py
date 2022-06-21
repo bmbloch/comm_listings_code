@@ -250,6 +250,31 @@ print('Property count after removing properties linked to REIS ID not in the log
 print("Can take this last drop out after market rate units are reliably filled in, and will let IAG props come in with incrementals")
 
 temp = df.copy()
+temp = temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) & (temp['in_log'].isnull() == True)]
+
+test = log_in.copy()
+test['id'] = test['id'].astype(str)
+log_ids = list(test.drop_duplicates('id')['id'])
+
+drop_list = []
+for index, row in temp.iterrows():
+    if row['property_er_to_foundation_ids_list'] != '':
+        er_ids = row['property_er_to_foundation_ids_list'].split(',')
+
+        for er_id in er_ids:
+            if er_id[0] == 'A':
+                if er_id[1:] in log_ids:
+                    drop_list.append(row['property_source_id'])
+                    break
+
+temp = df.copy()
+temp = temp[(temp['property_source_id'].isin(drop_list))]
+temp['reason'] = 'Property potential new construction, but ER link indicates property is already in the log'
+drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+
+df = df[~df['property_source_id'].isin(drop_list)]
+
+temp = df.copy()
 temp = temp.drop_duplicates('property_source_id')
 temp['count_links'] = temp.groupby('property_reis_rc_id')['property_source_id'].transform('count')
 df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['count_links']], on='property_reis_rc_id')
