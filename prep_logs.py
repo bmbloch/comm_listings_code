@@ -3171,7 +3171,7 @@ class PrepareLogs:
                 if col in self.type_dict.keys():
                     nc_add[col] = np.nan
 
-            nc_add['realid'] = nc_add['property_source_id']
+            nc_add['realid'] = 'A' + nc_add['property_source_id'].astype(str)
             nc_add['phase'] = 0
             if self.sector == "off":
                 nc_add['type2'] = np.where((nc_add['occupancy_type'].isin(['single_tenant', ''])), 'T', 'O')
