@@ -557,7 +557,7 @@ try:
                             logging.info("\n")
 
                         # append incrementals to historical log file
-                        combo, test_data, stop = prepLogs.append_incrementals(test_data, log, load)
+                        combo, test_data, stop, d_prop = prepLogs.append_incrementals(test_data, log, load)
 
                         if not stop:
 
