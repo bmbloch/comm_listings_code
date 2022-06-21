@@ -38,6 +38,7 @@ import json
 
 curryr = 2022
 currmon = 6
+use_reis_yr = True # Set this to true if want to override the RDMA year built and month built values with Foundation values
 
 logger = logging.getLogger()
 
@@ -345,6 +346,16 @@ del temp
 df = df[(df['geo_ident'].isin(test['geo_ident'].unique())) | ((df['subid'].isnull() == True) & (df['metcode'].isin(log_in['metcode'].unique())))]
 print('Property count after removing properties with metro sub combos that are not valid apt combos: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
+if use_reis_yr:
+    test = log_in.copy()
+    test['id'] = 'A' + test['id'].astype(str)
+    test = test.rename(columns={'year': 'f_year', 'month': 'f_month'})
+    df = df.drop(['f_year', 'f_month'], axis=1)
+    df = df.join(test.drop_duplicates('id').set_index('id')[['f_year', 'f_month']], on='property_reis_rc_id')
+    df[((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & ((df['year'] != df['f_year']) | (df['month'] != df['f_month'])) & (df['f_year'].isnull() == False)].drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id', 'year', 'month', 'f_year', 'f_month']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/year_built_diffs_{}m{}.csv'.format(curryr, currmon), index=False)
+    df['month'] = np.where(((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & (df['f_year'].isnull() == False), df['f_month'], df['month'])
+    df['year'] = np.where(((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & (df['f_year'].isnull() == False), df['f_year'], df['year'])
+
 for col in df.columns:
     if col in is_structural or col == 'property_source_id':
         df[col] = np.where((df[col] == ''), np.nan, df[col])
@@ -354,6 +365,8 @@ for col in df.columns:
         if len(df[df['count'] > 1]) > 0:
             print("Structural inconsistency")
             display(df[df['count'] > 1].sort_values(by=['property_source_id'], ascending=[True])[['property_source_id', 'property_reis_rc_id', col, 'survey_legacy_data_source', 'mult_link_check']].drop_duplicates(col).head(2))          
+
+df[(df['in_log'].isnull() == True) & (df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '')].drop_duplicates('property_source_id')[['property_source_id', 'property_er_to_foundation_ids_list', 'metcode', 'subid', 'year', 'month', 'totunits', 'mr_units']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/new_nc_{}m{}.csv'.format(curryr, currmon), index=False)
 
 test = log_in.copy()
 temp = df.copy()
