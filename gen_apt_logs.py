@@ -439,7 +439,7 @@ if temp[(temp['count_rows_log'] > 3000) | (temp['count_rows_df'] == 0)]['perc_di
 temp[['metcode', 'count_rows_log', 'count_rows_df', 'diff', 'perc_diff']].sort_values(by=['perc_diff'], ascending=[False]).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/diff_log_report_{}m{}.csv'.format(curryr, currmon), index=False)
 
 df = df.rename(columns={'property_source_id': 'id'})
-df = df[log_in.columns]
+df = df[log_in.columns + ['property_reis_rc_id']]
 
 df['survdate'] = pd.to_datetime(df['survdate']).dt.strftime('%m/%d/%Y')
 
@@ -453,7 +453,6 @@ test['in_log'] = 1
 drop_log = drop_log.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 drop_log['in_log'] = drop_log['in_log'].fillna(0)
 temp = df.copy()
-temp['property_reis_rc_id'] = 'A' + temp['id'].astype(str)
 temp['in_snap'] = 1
 drop_log = drop_log.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_snap']], on='property_reis_rc_id')
 drop_log['in_snap'] = drop_log['in_snap'].fillna(0)
@@ -462,4 +461,4 @@ drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshot
 for met in log_in['metcode'].unique():
     logging.info('Saving log for {}'.format(met))
     path = '/home/central/square/data/apt/download/test2022/{}.log'.format(met.lower())
-    df[df['metcode'] == met].to_csv(r'{}'.format(path), header=df.columns, index=None, sep=',', mode='w')
+    df[df['metcode'] == met].drop(['property_reis_rc_id'], axis=1).to_csv(r'{}'.format(path), header=df.columns, index=None, sep=',', mode='w')
