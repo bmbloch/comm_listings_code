@@ -3176,7 +3176,7 @@ class PrepareLogs:
                 if col in self.type_dict.keys():
                     nc_add[col] = np.nan
 
-            nc_add['realid'] = 'A' + nc_add['property_source_id'].astype(str)
+            nc_add['realid'] = np.where((nc_add['property_soruce_id'].str.isdigit()), 'a' + nc_add['property_source_id'].astype(str), nc_add['property_source_id'])
             nc_add['phase'] = 0
             if self.sector == "off":
                 nc_add['type2'] = np.where((nc_add['occupancy_type'].isin(['single_tenant', ''])), 'T', 'O')
@@ -3227,7 +3227,7 @@ class PrepareLogs:
                     nc_add = nc_add.drop([col],axis=1)
             
             combo = combo.append(nc_add, ignore_index=True)
-            
+
         nc_add[[x for x in combo.columns if x in nc_add.columns]].to_csv('{}/OutputFiles/{}/logic_logs/nc_additions_{}m{}.csv'.format(self.home, self.sector, self.curryr, self.currmon), index=False)
         
         logging.info('{:,} newly completed properties without surveys were added to the log'.format(len(nc_add)))
