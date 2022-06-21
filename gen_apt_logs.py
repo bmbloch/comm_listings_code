@@ -142,10 +142,14 @@ print('Initial unique property count: {:,}'.format(len(df.drop_duplicates('prope
 df['survdate_d'] = pd.to_datetime(df['survdate'])
 temp = df.copy()
 temp['count_test'] = temp[temp['survey_legacy_data_source'] == 'REIS_RC_Apt'].groupby('property_source_id')['property_source_id'].transform('count')
+temp['count_test'] = temp.groupby('property_source_id')['count_test'].bfill()
+temp['count_test'] = temp.groupby('property_source_id')['count_test'].ffill()
 temp['count_early'] = temp[temp['survdate_d'] < '06/01/2022'].groupby('property_source_id')['property_source_id'].transform('count')
+temp['count_early'] = temp.groupby('property_source_id')['count_early'].bfill()
+temp['count_early'] = temp.groupby('property_source_id')['count_early'].ffill()
 temp['count'] = temp.groupby('property_source_id')['property_source_id'].transform('count')
 temp = temp[((temp['survey_legacy_data_source'] == 'REIS_RC_Apt') & (temp['count'] == temp['count_test'])) | ((temp['survey_legacy_data_source'] == '') & (temp['survdate_d'] < '06/01/2022') & (temp['count'] == temp['count_early']))]
-temp['reason'] = 'Invalid survey source'
+temp['reason'] = 'No legacy log historical rows, and RDMA survey not true incremental survey'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
 df = df[(df['survey_legacy_data_source'].isin(['Foundation', 'ApartmentData.com'])) | ((df['survdate_d'] >= '06/01/2022') & (df['survey_legacy_data_source'] == ''))]
