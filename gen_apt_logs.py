@@ -146,7 +146,7 @@ temp['count_links'] = np.where((temp['property_reis_rc_id'] == '') , 0, temp['co
 temp['count_test'] = temp[temp['survey_legacy_data_source'] == 'REIS_RC_Apt'].groupby('property_source_id')['property_source_id'].transform('count')
 temp['count_test'] = temp.groupby('property_source_id')['count_test'].bfill()
 temp['count_test'] = temp.groupby('property_source_id')['count_test'].ffill()
-temp['count_early'] = temp[temp['survdate_d'] < '06/01/2022'].groupby('property_source_id')['property_source_id'].transform('count')
+temp['count_early'] = temp[(temp['survdate_d'] < '06/01/2022') & (temp['survey_legacy_data_source'] == '')].groupby('property_source_id')['property_source_id'].transform('count')
 temp['count_early'] = temp.groupby('property_source_id')['count_early'].bfill()
 temp['count_early'] = temp.groupby('property_source_id')['count_early'].ffill()
 temp['count'] = temp.groupby('property_source_id')['property_source_id'].transform('count')
