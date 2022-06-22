@@ -142,7 +142,7 @@ print('Initial unique property count: {:,}'.format(len(df.drop_duplicates('prope
 df['survdate_d'] = pd.to_datetime(df['survdate'])
 temp = df.copy()
 temp = df.copy()
-temp['property_reis_rc_id'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] == 'A'), temp['property_er_to_foundation_ids_list'], temp['property_reis_rc_id'])
+temp['property_reis_rc_id'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] == 'A'), temp['property_er_to_foundation_ids_list'].str.split(',').str[0], temp['property_reis_rc_id'])
 temp['count_links'] = temp.groupby('property_reis_rc_id')['property_source_id'].transform('nunique')
 temp['count_links'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] != 'A'), 0, temp['count_links'])
 temp['count_test'] = temp[temp['survey_legacy_data_source'] == 'REIS_RC_Apt'].groupby('property_source_id')['property_source_id'].transform('count')
