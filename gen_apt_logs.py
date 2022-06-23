@@ -472,7 +472,7 @@ drop_log['in_snap'] = drop_log['in_snap'].fillna(0)
 drop_log['in_snap'] = np.where((drop_log['property_reis_rc_id'] == ''), 0, drop_log['in_snap'])
 drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/drop_log_{}m{}.csv'.format(curryr, currmon), index=False)
 
-df.drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/property_ids.csv', index=False)
+df.drop_duplicates('property_reis_rc_id').rename(columns={'id': 'property_source_id'})[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/property_ids.csv', index=False)
 
 df = df.drop(['property_reis_rc_id'], axis=1)
 
