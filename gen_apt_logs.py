@@ -443,11 +443,15 @@ if temp[(temp['count_rows_log'] > 3000) | (temp['count_rows_df'] == 0)]['perc_di
     print("There is a significant difference in historical rows between the legacy download and the preprocessed logs")
 temp[['metcode', 'count_rows_log', 'count_rows_df', 'diff', 'perc_diff']].sort_values(by=['perc_diff'], ascending=[False]).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/diff_log_report_{}m{}.csv'.format(curryr, currmon), index=False)
 
+df['survdate'] = pd.to_datetime(df['survdate']).dt.strftime('%m/%d/%Y')
+df['count'] = df[df['survey_legacy_data_source'] != 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
+df['count'] = df.groupby('property_source_id')['count'].bfill()
+df['count'] = df.groupby('property_source_id')['count'].ffill()
+df['survdate'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), '{}/15/{}'.format(currmon, curryr), df['survdate'])
+
 df = df.rename(columns={'property_source_id': 'catylist_id'})
 df['id'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'].str[1:], df['catylist_id'])
 df = df[list(log_in.columns) + ['property_reis_rc_id', 'catylist_id']]
-
-df['survdate'] = pd.to_datetime(df['survdate']).dt.strftime('%m/%d/%Y')
 
 df = df.join(live_subs[live_subs['subid'] == 90].drop_duplicates('metcode').set_index('metcode').rename(columns={'subid': 'tertiary_sub'})[['tertiary_sub']], on='metcode')
 df['subid'] = np.where((df['tertiary_sub'] == 90), df['tertiary_sub'], df['subid'])
