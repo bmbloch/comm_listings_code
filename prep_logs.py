@@ -2886,7 +2886,7 @@ class PrepareLogs:
                             dp.location_geopoint_longitude,
                             dp.housing_type,
                             dp.retail_center_type,
-                            dp.buildings_condominiumized,
+                            dp.buildings_condominiumized_flag,
                             dp.buildings_physical_characteristics_number_of_floors,
                             dp.buildings_number_of_buildings,
                             dp.buildings_physical_characteristics_clear_height_max_ft,
@@ -2898,7 +2898,7 @@ class PrepareLogs:
                             dp.buildings_size_gross_sf,
                             dp.buildings_size_rentable_sf,
                             dp.occupancy_number_of_units,
-                            dp.occupancy_owner_occupied,
+                            dp.occupancy_owner_occupied_flag,
                             dp.occupancy_type,
                             dp.parcel_fips,
                             dp.buildings_construction_year_built,
@@ -2973,8 +2973,9 @@ class PrepareLogs:
             nc_add = nc_add[nc_add['retail_center_type'] == '']
             nc_add = nc_add[nc_add['subcategory'] != '']
             
-        nc_add = nc_add[(nc_add['buildings_condominiumized'].isnull() == True) | (nc_add['buildings_condominiumized'] == False)]
-            
+        nc_add['buildings_condominiumized_flag'] = np.where((nc_add['buildings_condominiumized_flag'] == 'Y'), 1, 0)
+        nc_add = nc_add[(nc_add['buildings_condominiumized_flag'] == 0)] 
+        
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
         nc_add['size'] = np.where((nc_add[size_by_use] > 0), nc_add[size_by_use], nc_add['size'])
@@ -2988,7 +2989,8 @@ class PrepareLogs:
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
         
-        nc_add = nc_add[(nc_add['occupancy_owner_occupied'].isnull() == True) | (nc_add['occupancy_owner_occupied'] == False)]
+        nc_add['occupancy_owner_occupied_flag'] = np.where((nc_add['occupancy_owner_occupied_flag'] == 'Y'), 1, 0)
+        nc_add = nc_add[(nc_add['occupancy_owner_occupied_flag'] == 0)]
         
         nc_add = nc_add[(nc_add['property_geo_msa_code'] != '') & (nc_add['property_geo_subid'].isnull() == False)]
         
