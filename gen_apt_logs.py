@@ -204,7 +204,7 @@ test['in_log'] = 1
 df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 
 for col in ['buildings_condominiumized']:
-    df[col] = np.where((df[col]) & (df[col].isnull() == False), 1, 0)
+    df[col] = np.where((df[col] == 'Y'), 1, 0)
 
 df['section_8_housing'] = np.where((df['section_8_housing'].isnull() == True), 0, df['section_8_housing'])
 
@@ -220,11 +220,11 @@ df = df[(df['section_8_housing'] == 0)]
 print('Property count after removing section 8 properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
-temp = temp[(temp['buildings_condominiumized'] == 1) & (temp['in_log'].isnull() == True)]
+temp = temp[(temp['buildings_condominiumized_flag'] == 1) & (temp['in_log'].isnull() == True)]
 temp['reason'] = 'Property is Condo'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
-df = df[(df['buildings_condominiumized'] == 0) | (df['in_log'] == 1)]
+df = df[(df['buildings_condominiumized_flag'] == 0) | (df['in_log'] == 1)]
 print('Property count after removing condo properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
