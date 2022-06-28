@@ -2340,6 +2340,7 @@ class PrepareLogs:
             test_data['all_avail_check'] = np.where((test_data['sublet_temp'] + test_data['avail_temp'] > test_data[size]) & (test_data['avail_check'] == 0), 1, 0)
 
             test_data[avail] = np.where((test_data[avail] > test_data[size]), test_data[size], test_data[avail])
+            test_data['sublet'] = np.where((test_data['sublet'] > test_data[size]), test_data[size], test_data['sublet'])
             
             test_data['avrent_check'] = np.where((test_data[lowrent].isnull() == False) & (test_data[hirent].isnull() == False) & (round((test_data[lowrent] + test_data[hirent]) / 2,2) != round(test_data[rent], 2)), 1, 0)
             test_data['avrent_check'] = np.where((test_data[lowrent].isnull() == False) & (test_data[hirent].isnull() == True) & (test_data[lowrent] != test_data[rent]), 1, test_data['avrent_check'])
