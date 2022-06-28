@@ -292,6 +292,14 @@ drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property
 df = df[~df['property_source_id'].isin(drop_list)]
 
 temp = df.copy()
+temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) & (temp['in_log'].isnull() == True) & (temp['totunits'].isnull() == True)]
+temp['reason'] = 'Net new NC property but no total units'
+drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+temp['drop_this'] = 1
+df = df.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['drop_this']], axis=1)
+df = df[df['drop_this'].isnull() == True]
+
+temp = df.copy()
 temp = temp.drop_duplicates('property_source_id')
 temp['count_links'] = temp.groupby('property_reis_rc_id')['property_source_id'].transform('count')
 df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['count_links']], on='property_reis_rc_id')
