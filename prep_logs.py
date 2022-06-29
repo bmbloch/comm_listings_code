@@ -2877,7 +2877,7 @@ class PrepareLogs:
                             dp.property_geo_msa_code, 
                             dp.property_geo_subid, 
                             dp.property_name, 
-                            dp.location_address_street_address,
+                            dp.location_street_address,
                             dp.location_address_locality,
                             dp.location_address_region,
                             dp.location_address_postal_code,
@@ -2898,7 +2898,7 @@ class PrepareLogs:
                             dp.buildings_size_gross_sf,
                             dp.buildings_size_rentable_sf,
                             dp.occupancy_number_of_units,
-                            dp.occupancy_owner_occupied_flag,
+                            dp.occupancy_is_owner_occupied_flag,
                             dp.occupancy_type,
                             dp.parcel_fips,
                             dp.buildings_construction_year_built,
@@ -2908,7 +2908,7 @@ class PrepareLogs:
                             sbu.building_retail_use_size_sf
                             from consumption.v_d_property dp
                             left join consumption.v_property_building_use_size sbu on dp.property_source_id = sbu.property_source_id
-                            where dp.buildings_construction_year_built >= {} and dp.buildings_building_status = 'EXISTING'""".format(self.curryr - 1))
+                            where dp.buildings_construction_year_built >= {} and dp.building_status = 'EXISTING'""".format(self.curryr - 1))
             d_prop: pd.DataFrame = cursor.fetch_dataframe()
             d_prop.replace([None], np.nan, inplace=True)
             d_prop = d_prop.drop_duplicates('property_source_id')
@@ -2931,7 +2931,7 @@ class PrepareLogs:
         
         null_to_string = ['occupancy_type', 'category', 'subcategory', 'property_source_id', 'property_reis_rc_id',
                           'property_catylist_nc_id', 'property_er_to_foundation_ids_list', 'property_geo_msa_code', 
-                          'property_name', 'location_address_street_address', 'location_address_locality', 'location_address_region',
+                          'property_name', 'location_street_address', 'location_address_locality', 'location_address_region',
                           'location_address_region', 'location_county', 'housing_type', 'retail_center_type']
         
         for col in null_to_string:
@@ -2989,8 +2989,8 @@ class PrepareLogs:
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
             nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
         
-        nc_add['occupancy_owner_occupied_flag'] = np.where((nc_add['occupancy_owner_occupied_flag'] == 'Y'), 1, 0)
-        nc_add = nc_add[(nc_add['occupancy_owner_occupied_flag'] == 0)]
+        nc_add['occupancy_is_owner_occupied_flag'] = np.where((nc_add['occupancy_is_owner_occupied_flag'] == 'Y'), 1, 0)
+        nc_add = nc_add[(nc_add['occupancy_is_owner_occupied_flag'] == 0)]
         
         nc_add = nc_add[(nc_add['property_geo_msa_code'] != '') & (nc_add['property_geo_subid'].isnull() == False)]
         
@@ -3023,7 +3023,7 @@ class PrepareLogs:
         rename_cols = {'property_geo_msa_code': 'metcode',
                        'property_geo_subid': 'subid',
                        'property_name': 'propname',
-                       'location_address_street_address': 'address',
+                       'location_street_address': 'address',
                        'location_address_locality': 'city',
                        'location_address_postal_code':'zip',
                        'location_county': 'county',
