@@ -295,8 +295,8 @@ temp = df.copy()
 temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) & (temp['in_log'].isnull() == True) & (temp['totunits'].isnull() == True)]
 temp['reason'] = 'Net new NC property but no total units'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
-temp['drop_this'] = 1
-df = df.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['drop_this']], axis=1)
+temp = temp['drop_this'] = 1
+df = df.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['drop_this']], ond='property_source_id')
 df = df[df['drop_this'].isnull() == True]
 
 temp = df.copy()
