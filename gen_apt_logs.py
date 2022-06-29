@@ -35,6 +35,7 @@ import boto3
 import base64
 from botocore.exceptions import ClientError
 import json
+from datetime import timedelta
 
 curryr = 2022
 currmon = 6
@@ -100,6 +101,17 @@ is_structural = ['propname', 'metcode', 'subid', 'address', 'city', 'county', 's
                  'fipscode']
 
 df_in['survey_legacy_data_source'] = np.where((df_in['survey_legacy_data_source'].isnull() == True), '', df_in['survey_legacy_data_source'])
+
+test = df_in.copy()
+test['survdate_d'] = pd.to_datetime(test['survdate'])
+if datetime.today().weekday() != 0:
+    delta_val = 1
+else:
+    delta_val = 3
+test = test[(test['survey_legacy_data_source'] == '') & (test['survdate_d'] == datetime.strftime(date.today() - timedelta(days = delta_val), '%m/%d/%Y'))][['property_source_id', 'survdate']]
+if len(test) == 0:
+    print("There are no incremental surveys for {}".format(datetime.strftime(date.today() - timedelta(days = delta_val), '%m/%d/%Y')))
+del test
 
 df = df_in.copy()
 drop_log = pd.DataFrame()
