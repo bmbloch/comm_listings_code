@@ -417,8 +417,6 @@ for col in df.columns:
             display(df[df['count'] > 1].sort_values(by=['property_source_id'], ascending=[True])[['property_source_id', 'property_reis_rc_id', col, 'survey_legacy_data_source', 'mult_link_check']].drop_duplicates(col).head(2))          
 
 df[(df['in_log'].isnull() == True) & (df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '')].drop_duplicates('property_source_id')[['property_source_id', 'property_er_to_foundation_ids_list', 'metcode', 'subid', 'year', 'month', 'totunits', 'mr_units']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/new_nc_{}m{}.csv'.format(curryr, currmon), index=False)
-df['property_source_id'] = np.where((df['property_reis_rc_id'] == '') & (df['year'] >= curryr - 1) & (df['in_log'].isnull() == True) & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['propert_source_id'])
-
 
 test = log_in.copy()
 temp = df.copy()
@@ -459,6 +457,7 @@ df['count'] = df.groupby('property_source_id')['count'].bfill()
 df['count'] = df.groupby('property_source_id')['count'].ffill()
 df['survdate'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), '{}/15/{}'.format(currmon, curryr), df['survdate'])
 
+df['property_source_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['propert_source_id'])
 df = df.rename(columns={'property_source_id': 'catylist_id'})
 df['id'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'].str[1:], df['catylist_id'])
 df = df[list(log_in.columns) + ['property_reis_rc_id', 'catylist_id']]
