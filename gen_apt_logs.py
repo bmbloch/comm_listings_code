@@ -405,6 +405,7 @@ if use_reis_yr:
     df[((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & ((df['year'] != df['f_year']) | (df['month'] != df['f_month'])) & (df['f_year'].isnull() == False)].drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id', 'year', 'month', 'f_year', 'f_month']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/year_built_diffs_{}m{}.csv'.format(curryr, currmon), index=False)
     df['month'] = np.where(((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & (df['f_year'].isnull() == False), df['f_month'], df['month'])
     df['year'] = np.where(((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & (df['f_year'].isnull() == False), df['f_year'], df['year'])
+df['renov'] = np.where((df['renov'].isnull() == False) & (df['renov'] < df['year']), np.nan, df['renov'])
 
 for col in df.columns:
     if col in is_structural or col == 'property_source_id':
