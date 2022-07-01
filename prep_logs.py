@@ -128,7 +128,7 @@ class PrepareLogs:
                 test_data_in.replace([None], np.nan, inplace=True)
                 conn.close()
                 
-                conv_decimal = list(temp.loc[:,temp.iloc[0].apply(type)==decimal.Decimal].columns)
+                conv_decimal = list(test_data_in.loc[:,test_data_in.iloc[0].apply(type)==decimal.Decimal].columns)
                 for col in conv_decimal:
                     test_data_in[col] = test_data_in[col].astype(float)
 
