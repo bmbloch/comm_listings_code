@@ -126,6 +126,7 @@ class PrepareLogs:
                 cursor.execute("SELECT * FROM consumption.v_catylisturt_listing_to_econ")
                 test_data_in: pd.DataFrame = cursor.fetch_dataframe()
                 test_data_in.replace([None], np.nan, inplace=True)
+                conn.close()
                 
                 conv_decimal = list(temp.loc[:,temp.iloc[0].apply(type)==decimal.Decimal].columns)
                 for col in conv_decimal:
@@ -2916,6 +2917,7 @@ class PrepareLogs:
                             where dp.buildings_construction_year_built >= {} and dp.building_status = 'EXISTING'""".format(self.curryr - 1))
             d_prop: pd.DataFrame = cursor.fetch_dataframe()
             d_prop.replace([None], np.nan, inplace=True)
+            conn.close()
             d_prop = d_prop.drop_duplicates('property_source_id')
             d_prop.to_csv('{}/InputFiles/d_prop.csv'.format(self.home), index=False)
             
