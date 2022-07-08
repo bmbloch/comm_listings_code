@@ -2909,12 +2909,13 @@ class PrepareLogs:
                             dp.parcels_fips,
                             dp.buildings_construction_year_built,
                             dp.buildings_construction_expected_completion_date,
+                            dp.buildings_construction_year_renovated,
                             sbu.building_office_use_size_sf,
                             sbu.building_industrial_use_size_sf,
                             sbu.building_retail_use_size_sf
                             from consumption.v_d_property dp
                             left join consumption.v_property_building_use_size sbu on dp.property_source_id = sbu.property_source_id
-                            where dp.buildings_construction_year_built >= {} and dp.building_status = 'EXISTING'""".format(self.curryr - 1))
+                            where extract(YEAR FROM date(dp.buildings_construction_expected_completion_date)) >= {} and dp.building_status = 'EXISTING'""".format(self.curryr - 1))
             d_prop: pd.DataFrame = cursor.fetch_dataframe()
             d_prop.replace([None], np.nan, inplace=True)
             conn.close()
@@ -2926,8 +2927,13 @@ class PrepareLogs:
           
         nc_add = d_prop.copy()
         
-        nc_add = nc_add[nc_add['buildings_construction_year_built'] <= self.curryr]
+        nc_add['const_year'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.year
+        nc_add['month'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.month
+        
+        nc_add = nc_add[(nc_add['const_year'] < self.curryr) | ((nc_add['const_year'] == self.curryr) & (nc_add['month'] <= self.currmon))]
             
+        nc_add = nc_add[(nc_add['const_year'] == nc_add['buildings_construction_year_built']) | (nc_add['buildings_construction_year_built'].isnull() ==True) | (nc_add['const_year'] == nc_add['buildings_construction_year_renovated'])]
+        
         nc_add['property_reis_rc_id'] = np.where(nc_add['property_reis_rc_id'] == 'None', '', nc_add['property_reis_rc_id'])
         nc_add['property_reis_rc_id'] = nc_add['property_reis_rc_id'].str.replace('-', '')
 
@@ -2979,13 +2985,14 @@ class PrepareLogs:
         if self.sector == "ret":
             nc_add = nc_add[nc_add['retail_center_type'] == '']
             nc_add = nc_add[nc_add['subcategory'] != '']
-            
-        nc_add['buildings_condominiumized_flag'] = np.where((nc_add['buildings_condominiumized_flag'] == 'Y'), 1, 0)
-        nc_add = nc_add[(nc_add['buildings_condominiumized_flag'] == 0)] 
         
+        nc_add['buildings_condominiumized_flag'] = np.where((nc_add['buildings_condominiumized_flag'] == 'Y'), 1, 0)
+        nc_add = nc_add[(nc_add['buildings_condominiumized_flag'] == 0)]
+            
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
         nc_add['size'] = np.where((nc_add[size_by_use] > 0), nc_add[size_by_use], nc_add['size'])
+        
         if self.sector == "off" or self.sector == "ind":
             nc_add = nc_add[(nc_add['size'].isnull() == False) & (nc_add['size'] >= 10000)]
         elif self.sector == "ret":
@@ -2998,7 +3005,6 @@ class PrepareLogs:
         
             nc_add['size'] = np.where((nc_add['subcategory'] == 'warehouse_distribution') & (nc_add['building_office_use_size_sf'] > 0) & (nc_add['size'] - nc_add['building_office_use_size_sf'] >= 10000), nc_add['size'] - nc_add['building_office_use_size_sf'], nc_add['size'])
         
-
         nc_add['occupancy_is_owner_occupied_flag'] = np.where((nc_add['occupancy_is_owner_occupied_flag'] == 'Y'), 1, 0)
         nc_add = nc_add[(nc_add['occupancy_is_owner_occupied_flag'] == 0)]
         
@@ -3027,7 +3033,6 @@ class PrepareLogs:
                             
         nc_add = nc_add[~nc_add['property_source_id'].isin(drop_list)]
                     
-        nc_add['month'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.month
         nc_add = nc_add[nc_add['month'].isnull() == False]
 
         rename_cols = {'property_geo_msa_code': 'metcode',
@@ -3038,7 +3043,7 @@ class PrepareLogs:
                        'location_address_postal_code':'zip',
                        'location_county': 'county',
                        'location_address_region': 'state',
-                       'buildings_construction_year_built': 'year',
+                       'const_year': 'year',
                        'buildings_physical_characteristics_number_of_floors': 'flrs',
                        'buildings_number_of_buildings': 'bldgs',
                        'location_geopoint_longitude': 'x',
