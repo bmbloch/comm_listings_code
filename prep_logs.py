@@ -2906,7 +2906,7 @@ class PrepareLogs:
                             dp.occupancy_number_of_units,
                             dp.occupancy_is_owner_occupied_flag,
                             dp.occupancy_type,
-                            dp.parcel_fips,
+                            dp.parcels_fips,
                             dp.buildings_construction_year_built,
                             dp.buildings_construction_expected_completion_date,
                             sbu.building_office_use_size_sf,
