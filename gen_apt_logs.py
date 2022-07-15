@@ -191,11 +191,11 @@ print('Property count after removing non published aptdata.com surveys: {:,}'.fo
 display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
 temp = df.copy()
-temp = temp[(temp['year'] > curryr) | ((temp['year'] == curryr) & (temp['month'] > currmon))]
+temp = temp[((temp['year'] > curryr) & (temp['year'].isnull() == False)) | ((temp['year'] == curryr) & (temp['month'] > currmon) & (temp['month'].isnull() == False))]
 temp['reason'] = 'Property has year built in the future'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
-df = df[(df['year'] < curryr) | ((df['year'] == curryr) & (df['month'] <= currmon))]
+df = df[(df['year'] < curryr) | (df['year'].isnull() == True) | ((df['year'] == curryr) & ((df['month'] <= currmon) | (df['month'].isnull() == True)))]
 
 if len(df[df['survdate'].isnull() == True]) > 0:
     print("There are rows that are missing a survey date")
