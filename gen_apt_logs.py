@@ -264,7 +264,7 @@ print('Property count after removing student properties: {:,}'.format(len(df.dro
 
 df['reis_record'] = np.where((df['property_reis_rc_id'] == '') | (df['property_reis_rc_id'].str[0] != 'A'), False, True)
 temp = df.copy()
-temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['month'].isnull() == True))]
+temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['year'].isnull() == True) | (temp['month'].isnull() == True))]
 temp['reason'] = 'Property is not linked to a REIS Apartment record'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
