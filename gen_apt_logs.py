@@ -476,6 +476,8 @@ df['count'] = df[df['survey_legacy_data_source'] != 'ApartmentData.com'].groupby
 df['count'] = df.groupby('property_source_id')['count'].bfill()
 df['count'] = df.groupby('property_source_id')['count'].ffill()
 df['survdate'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), '{}/15/{}'.format(currmon, curryr), df['survdate'])
+df['realyr'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), curryr, df['realyr'])
+df['realqtr'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), np.ceil(currmon / 3), df['realqtr'])
 
 df['property_source_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['property_source_id'])
 df = df.rename(columns={'property_source_id': 'catylist_id'})
