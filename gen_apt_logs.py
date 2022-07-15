@@ -190,6 +190,13 @@ print('Property count after removing non published aptdata.com surveys: {:,}'.fo
 
 display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
+temp = df.copy()
+temp = temp[(temp['year'] > curryr) | ((temp['year'] == curryr) & (temp['month'] > currmon))]
+temp['reason'] = 'Property has year built in the future'
+drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+del temp
+df = df[(df['year'] < curryr) | ((df['year'] == curryr) & (df['month'] <= currmon))]
+
 if len(df[df['survdate'].isnull() == True]) > 0:
     print("There are rows that are missing a survey date")
 
@@ -470,7 +477,7 @@ df['count'] = df.groupby('property_source_id')['count'].bfill()
 df['count'] = df.groupby('property_source_id')['count'].ffill()
 df['survdate'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), '{}/15/{}'.format(currmon, curryr), df['survdate'])
 
-df['property_source_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['propert_source_id'])
+df['property_source_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['property_source_id'])
 df = df.rename(columns={'property_source_id': 'catylist_id'})
 df['id'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'].str[1:], df['catylist_id'])
 df = df[list(log_in.columns) + ['property_reis_rc_id', 'catylist_id']]
