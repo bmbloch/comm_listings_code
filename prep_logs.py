@@ -1309,7 +1309,7 @@ class PrepareLogs:
             test_data['include'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000), False, test_data['include'])
             test_data['include'] = np.where((test_data['property_geo_msa_code'] == '') | (test_data['property_geo_subid'].isnull() == True), False, test_data['include'])
             test_data['include'] = np.where((test_data['first_year'] > self.curryr) | ((test_data['first_year'] == self.curryr) & (test_data['buildings_construction_expected_completion_month'] > self.currmon)), False, test_data['include'])
-            test_data['include'] = np.where((test_data['legacy']), True, test_data['include'])
+            test_data['include'] = np.where((test_data['leg']), True, test_data['include'])
             
             temp = test_data.copy()
             temp = temp[temp['include'] == False]
@@ -2995,23 +2995,25 @@ class PrepareLogs:
         
         nc_add['buildings_condominiumized_flag'] = np.where((nc_add['buildings_condominiumized_flag'] == 'Y'), 1, 0)
         nc_add = nc_add[(nc_add['buildings_condominiumized_flag'] == 0)]
+
+        nc_add['off_perc'] = np.nan
+        if self.sector == "ind":
+            nc_add['off_perc'] = np.where((nc_add['building_office_use_size_sf'].isnull() == False), nc_add['building_office_use_size_sf'] / nc_add['size'], (nc_add['size'] - nc_add['building_industrial_use_size_sf']) / nc_add['size'])
             
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
-        nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']), nc_add[size_by_use], nc_add['size'])
+        nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']) & ((nc_add['off_perc'] < 0.25) | (self.sector != 'ind')), nc_add[size_by_use], nc_add['size'])
         
+        nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
+        nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
+        nc_add['size'] = np.where((nc_add['subcategory'] == 'warehouse_distribution') & (nc_add['building_office_use_size_sf'] > 0) & (nc_add['size'] - nc_add['building_office_use_size_sf'] >= 10000), nc_add['size'] - nc_add['building_office_use_size_sf'], nc_add['size'])
+        
+
         if self.sector == "off" or self.sector == "ind":
             nc_add = nc_add[(nc_add['size'].isnull() == False) & (nc_add['size'] >= 10000)]
         elif self.sector == "ret":
             nc_add = nc_add[(nc_add['size'].isnull() == False)]
-        
-        if self.sector == "ind":
-            nc_add['off_perc'] = np.where((nc_add['building_office_use_size_sf'].isnull() == False), nc_add['building_office_use_size_sf'] / nc_add['size'], (nc_add['size'] - nc_add['building_industrial_use_size_sf']) / nc_add['size'])
-            nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
-            nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
-        
-            nc_add['size'] = np.where((nc_add['subcategory'] == 'warehouse_distribution') & (nc_add['building_office_use_size_sf'] > 0) & (nc_add['size'] - nc_add['building_office_use_size_sf'] >= 10000), nc_add['size'] - nc_add['building_office_use_size_sf'], nc_add['size'])
-        
+            
         nc_add['occupancy_is_owner_occupied_flag'] = np.where((nc_add['occupancy_is_owner_occupied_flag'] == 'Y'), 1, 0)
         nc_add = nc_add[(nc_add['occupancy_is_owner_occupied_flag'] == 0)]
         
