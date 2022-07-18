@@ -3002,7 +3002,7 @@ class PrepareLogs:
             
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
-        nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']) & ((nc_add['off_perc'] < 0.25) | (self.sector != 'ind')), nc_add[size_by_use], nc_add['size'])
+        nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']) & ((nc_add['off_perc'] < 0.25) | (nc_add['off_perc'].isnull() == True) | (~test_data['subcategory'].isin(['warehouse_flex', 'warehouse_office']))), nc_add[size_by_use], nc_add['size'])
         
         nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
         nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
