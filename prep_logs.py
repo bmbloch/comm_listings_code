@@ -1164,7 +1164,7 @@ class PrepareLogs:
     def format_realid(self, test_data, log):
         
         if self.legacy_only:
-            test_data = test_data[(test_data['leg'] == True) | ((test_data['first_year'] >= self.curryr - 3) & (self.include_cons))] 
+            test_data = test_data[(test_data['leg'] == True) | ((test_data['first_year'] >= self.curryr - 1) & (self.include_cons))] 
                
         # If the sector is off or retail, the last digit of the realid is actually the phase
         if self.sector == "off" or self.sector == "ind":
