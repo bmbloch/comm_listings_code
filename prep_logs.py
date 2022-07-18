@@ -1254,8 +1254,8 @@ class PrepareLogs:
             test_data['type2'] = test_data['type1']
 
         if self.sector == "ind":
-            test_data['space_size_available'] = np.where((test['space_size_available'] > 0) & (test_data['type2'] != 'F') & (test_data['space_industrial_size_sf'] > 100) & (test_data['space_industrial_size_sf'] <= test_data['space_size_available']), test_data['space_industrial_size_sf'], test_data['space_size_available'])
-            test_data['space_size_available'] = np.where((test['space_size_available'] > 0) & (test_data['type2'] != 'F') & (test_data['space_office_size_sf'] > 100) & (test_data['space_industrial_size_sf'].isnull() == True) & (test_data['space_size_available'] - test_data['space_office_size_sf'] >= 500), test_data['space_size_available'] - test_data['space_office_size_sf'], test_data['space_size_available'])
+            test_data['space_size_available'] = np.where((test_data['space_size_available'] > 0) & (test_data['type2'] != 'F') & (test_data['space_industrial_size_sf'] > 100) & (test_data['space_industrial_size_sf'] <= test_data['space_size_available']), test_data['space_industrial_size_sf'], test_data['space_size_available'])
+            test_data['space_size_available'] = np.where((test_data['space_size_available'] > 0) & (test_data['type2'] != 'F') & (test_data['space_office_size_sf'] > 100) & (test_data['space_industrial_size_sf'].isnull() == True) & (test_data['space_size_available'] - test_data['space_office_size_sf'] >= 500), test_data['space_size_available'] - test_data['space_office_size_sf'], test_data['space_size_available'])
             
     
         return test_data
