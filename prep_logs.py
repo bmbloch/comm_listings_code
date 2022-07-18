@@ -1301,9 +1301,11 @@ class PrepareLogs:
                 size_by_use = "building_retail_size_sf"
 
             test_data['include'] = False
-            test_data['include'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data[size_by_use] > 0), True, test_data['include'])
             test_data['include'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + [''])), False, test_data['include'])
+            test_data['include'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data[size_by_use] > 0), True, test_data['include'])
             test_data['include'] = np.where((test_data['subcategory'] == 'warehouse_office') & (self.sector == 'ind') & (test_data['building_industrial_size_sf'].isnull() == True) & (test_data['building_office_size_sf'].isnull() == True), False, test_data['include'])
+            if 'buildings_condominiumized_flag' not in test_data.columns:
+                test_data['buildings_condominiumized_flag'] = 'N'
             test_data['include'] = np.where((test_data['buildings_condominiumized_flag'] == 'Y'), False, test_data['include'])
             test_data['include'] = np.where(((test_data['retail_center_type'] != '') | (test_data['subcategory'] == '')) & (self.sector == 'ret'), False, test_data['include'])
             test_data['include'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000), False, test_data['include'])
@@ -1318,11 +1320,10 @@ class PrepareLogs:
                 self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason']].drop_duplicates('property_source_id'), ignore_index=True)
             test_data = test_data[(test_data['include'])]
             if self.sector == 'ind':
-                test_data['off_perc'] = np.where((test_data['building_office_size_sf'].isnull() == False), test_data['building_office_size_sf'] / test_data['size'], (test_data['size'] - test_data['building_industrial_size_sf']) / test_data['size'])
-                test_data['subcategory'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] >= 0.25), 'warehouse_flex', test_data['subcategory'])
-                test_data['subcategory'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] < 0.25), 'warehouse_distribution', test_data['subcategory'])
-                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['subcategory'] == 'warehouse_distribution'), 'W', test_data['type2'])
-                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['subcategory'] == 'warehouse_flex'), 'F', test_data['type2'])
+                test_data['off_perc'] = np.where((test_data['building_office_size_sf'].isnull() == False), test_data['building_office_size_sf'] / test_data['tot_size'], np.nan)
+                test_data['off_perc'] = np.where((test_data['building_industrial_size_sf'].isnull() == False) & (test_data['building_industrial_size_sf'] <= test_data['tot_size']), (test_data['tot_size'] - test_data['building_industrial_size_sf']) / test_data['tot_size'], test_data['off_perc'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] >= 0.25), 'F', test_data['type2'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & ((test_data['off_perc'] < 0.25) | (test_data['off_perc'].isnull() == True)), 'W', test_data['type2'])
             
         # Drop properties that have no spaces that are for publishable reis types for the sector
         # Also infer that space is leased in cases where a property is assigned a reis id, has no publishable space types in the listings data, but is not fully avail
