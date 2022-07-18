@@ -2971,8 +2971,6 @@ class PrepareLogs:
         elif self.sector == "ret":
             size_by_use = "building_retail_use_size_sf"
             
-            
-        # need size by use fields in d_prop for mixed use cases
         nc_add['mixed_use_check'] = np.where((nc_add['subcategory'] == 'mixed_use') & (nc_add[size_by_use] > 0), True, False)
         
         nc_add = nc_add[((nc_add['category'].isin(self.sector_map[self.sector]['category'])) & (nc_add['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['']))) | (nc_add['mixed_use_check'])]
