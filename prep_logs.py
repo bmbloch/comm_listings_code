@@ -1290,30 +1290,38 @@ class PrepareLogs:
             test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id').rename(columns={'reason': 'drop_this'})[['drop_this']], on='property_source_id')
             test_data = test_data[(test_data['drop_this'].isnull() == True)]
             test_data = test_data.drop(['drop_this'],axis=1)
-
-        if self.sector == "off":
-            temp = test_data.copy()
-            temp = temp[~(temp['subcategory'].isin(['general', 'corporate_facility', 'financial', 'office'])) & (test_data['subcategory'] != '') & (test_data['leg'] == False)]
-            if len(temp) > 0:
-                temp['reason'] = 'subcategory not in line with publishable REIS types'
-                self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason', 'space_category']].drop_duplicates('property_source_id'), ignore_index=True)
-            test_data = test_data[(test_data['subcategory'].isin(['general', 'corporate_facility', 'financial', 'office'])) | (test_data['subcategory'] == '') | (test_data['leg'])]
-
-        elif self.sector == "ind":
-            temp = test_data.copy()
-            temp = temp[(temp['subcategory'].isin(['warehouse_flex', 'warehouse_distribution', 'warehouse_office'])) & (temp['subcategory'] == '') & (temp['leg'] == False)]
-            if len(temp) > 0:
-                temp['reason'] = 'subcategory not in line with publishable REIS types'
-                self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason', 'space_category']].drop_duplicates('property_source_id'), ignore_index=True)
-            test_data = test_data[(test_data['subcategory'].isin(['warehouse_flex', 'warehouse_distribution', 'warehouse_office'])) | (test_data['subcategory'] == '') | (test_data['leg'])]
         
         if not self.legacy_only or self.include_cons:
+            
+            if self.sector == "off":
+                size_by_use = 'building_office_size_sf'
+            elif self.sector == "ind":
+                size_by_use = "building_industrial_size_sf"
+            elif self.sector == "ret":
+                size_by_use = "building_retail_size_sf"
+
+            test_data['include'] = False
+            test_data['include'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data[size_by_use] > 0), True, test_data['include'])
+            test_data['include'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + [''])), False, test_data['include'])
+            test_data['include'] = np.where((test_data['subcategory'] == 'warehouse_office') & (self.sector == 'ind') & (test_data['building_industrial_use_size_sf'].isnull() == True) & (test_data['building_office_use_size_sf'].isnull() == True), False, test_data['include'])
+            test_data['include'] = np.where((test_data['buildings_condominiumized_flag'] == 'Y'), False, test_data['include'])
+            test_data['include'] = np.where(((test_data['retail_center_type'] != '') | (test_data['subcategory'] == '')) & (self.sector == 'ret'), False, test_data['include'])
+            test_data['include'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000), False, test_data['include'])
+            test_data['include'] = np.where((test_data['property_geo_msa_code'] == '') | (test_data['property_geo_subid'].isnull() == True), False, test_data['include'])
+            test_data['include'] = np.where((test_data['legacy']), True, test_data['include'])
+            
             temp = test_data.copy()
-            temp = temp[(~temp['catylist_sector'].isin(self.sector_map[self.sector]['sector'])) & (temp['catylist_sector'] != '') & (temp['leg'] == False)]
+            temp = temp[temp['include'] == False]
             if len(temp) > 0:
-                temp['reason'] = 'catylist sector not in line with reis sector'
-                self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason', 'catylist_sector', 'space_category']].drop_duplicates('property_source_id'), ignore_index=True)
-            test_data = test_data[(test_data['catylist_sector'].isin(self.sector_map[self.sector]['sector'])) | (test_data['catylist_sector'] == '') | test_data['leg']]
+                temp['reason'] = 'Net new Catylist property not eligible for inclusion'
+                self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason']].drop_duplicates('property_source_id'), ignore_index=True)
+            test_data = test_data[(test_data['include'])]
+            if self.sector == 'ind':
+                test_data['off_perc'] = np.where((test_data['building_office_use_size_sf'].isnull() == False), test_data['building_office_use_size_sf'] / test_data['size'], (test_data['size'] - test_data['building_industrial_use_size_sf']) / test_data['size'])
+                test_data['subcategory'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] >= 0.25), 'warehouse_flex', test_data['subcategory'])
+                test_data['subcategory'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] < 0.25), 'warehouse_distribution', test_data['subcategory'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['subcategory'] == 'warehouse_distribution'), 'W', test_data['type2'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['subcategory'] == 'warehouse_flex'), 'F', test_data['type2'])
             
         # Drop properties that have no spaces that are for publishable reis types for the sector
         # Also infer that space is leased in cases where a property is assigned a reis id, has no publishable space types in the listings data, but is not fully avail
