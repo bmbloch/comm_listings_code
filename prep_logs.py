@@ -403,7 +403,7 @@ class PrepareLogs:
         test_data['property_reis_rc_id'] = np.where(test_data['property_reis_rc_id'] == 'None', '', test_data['property_reis_rc_id'])
         test_data['property_reis_rc_id'] = test_data['property_reis_rc_id'].str.replace('-', '')
 
-        to_lower = ['buildings_building_status', 'availability_status', 'occupancy_type', 'category', 'subcategory',
+        to_lower = ['building_status', 'availability_status', 'occupancy_type', 'category', 'subcategory',
                    'space_category', 'lease_asking_rent_price_period', 'lease_asking_rent_price_size', 'occupancy_expenses_period',
                    'occupancy_expenses_size', 'occupancy_cam_period', 'occupancy_cam_size', 'lease_transaction_rent_price_period', 
                    'lease_transaction_rent_price_size', 'street_address', 'lease_terms', 'space_floor', 'space_suite', 
@@ -412,7 +412,7 @@ class PrepareLogs:
         for col in to_lower:
             test_data[col] = test_data[col].str.lower()
         
-        null_to_string = ['buildings_building_status', 'occupancy_type', 'category', 'subcategory', 'space_category',
+        null_to_string = ['building_status', 'occupancy_type', 'category', 'subcategory', 'space_category',
                           'retail_property_is_anchor_flag', 'property_source_id', 'property_reis_rc_id',
                           'foundation_ids_list', 'catylist_sector', 'property_geo_msa_list', 
                           'property_geo_subid_list', 'street_address', 'commission_description', 'lease_terms', 
@@ -445,6 +445,18 @@ class PrepareLogs:
         # If a property has retail spaces but the category is not Retail, set the anchor flag to N if it is null
         test_data['retail_property_is_anchor_flag'] = np.where((test_data['category'] != 'retail') & (test_data['retail_property_is_anchor_flag'] == '') & (test_data['space_category'] == 'retail'), 'N', test_data['retail_property_is_anchor_flag'])
         
+        test_data['buildings_construction_expected_completion_date'] = pd.to_datetime(test_data['buildings_construction_expected_completion_date'])
+        test_data['exp_comp_year'] = test_data['buildings_construction_expected_completion_date'].dt.year
+        test_data['exp_comp_month'] = test_data['buildings_construction_expected_completion_date'].dt.month
+        temp = test_data.copy()
+        temp = temp[temp['building_status'] == 'existing']
+        temp = temp[(temp['exp_comp_year'].isnull() == False) & (temp['buildings_construction_yearbuilt'].isnull() == False) & (temp['exp_comp_year'] != temp['buildings_construction_yearbuilt']) & (temp['exp_comp_year'] != temp['renov_year'])]
+        if self.first and len(temp) > 0:
+            temp['flag'] = 'expected completion year not in line with year built or renov year'
+            temp['status'] = 'flagged'
+            self.logic_log = self.logic_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'flag', 'status']])
+            
+        
         test_data['mult_rc_tag'] = False
         test_data['count'] = test_data.groupby('property_reis_rc_id')['property_source_id'].transform('nunique')
         test_data['businesspark_temp'] = np.where((test_data['businesspark'] == ''), np.nan, test_data['businesspark'])
@@ -465,7 +477,7 @@ class PrepareLogs:
                 test_data['mult_rc_tag'] = np.where((test_data['count'] > 1) & ((test_data['count_bp'] > 1) | (test_data['businesspark'] == '')) & (temp['property_reis_rc_id'] != '') & (temp['property_reis_rc_id'].str[0] == self.sector_map[self.sector]['prefix']), True, test_data['mult_rc_tag'])
         if self.use_rc_id:
             temp = test_data.copy()
-            temp = temp[(temp['buildings_building_status'] != 'existing') & (temp['buildings_building_status'] != '') & (temp['property_reis_rc_id'] != '')]
+            temp = temp[(temp['building_status'] != 'existing') & (temp['building_status'] != '') & (temp['property_reis_rc_id'] != '')]
             temp = temp.drop_duplicates('property_reis_rc_id')
             temp['count_nonexist'] = temp.groupby('property_reis_rc_id')['property_source_id'].transform('count')
             test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['count_nonexist']], on='property_source_id')
@@ -998,7 +1010,7 @@ class PrepareLogs:
            'ret': ['retail']}
         
         test_data['count'] = test_data.groupby('id_use')['property_source_id'].transform('nunique')
-        test_data['not_complete'] = np.where((test_data['count'] > 1) & (~test_data['buildings_building_status'].isin(['existing', ''])), 1, 0)
+        test_data['not_complete'] = np.where((test_data['count'] > 1) & (~test_data['building_status'].isin(['existing', ''])), 1, 0)
         temp = test_data.copy()
         temp = temp[(temp['not_complete'] == 1)]
         if len(temp) > 0:
@@ -1119,7 +1131,7 @@ class PrepareLogs:
                 temp['status'] = 'No Econ Link'
                 id_check = id_check.append(temp.drop_duplicates('property_source_id')[['id_use', 'property_source_id', 'flag', 'status']])
         temp = test_data.copy()
-        temp = temp[((temp['foundation_property_id'].isnull() == True) | (temp['foundation_property_id'] == '')) & ((temp['foundation_ids_list'] != '') | (temp['property_reis_rc_id'] != '')) & ((temp['foundation_ids_list'].str.contains(self.sector_map[self.sector]['prefix']) == True) | (temp['property_reis_rc_id'].str.contains(self.sector_map[self.sector]['prefix']) == True))]
+        temp = temp[((temp['foundation_property_id'].isnull() == True) | (temp['foundation_property_id'] == '')) & ((temp['foundation_ids_list'] != '') | (temp['property_reis_rc_id'] != '')) & ((temp['foundation_ids_list'].str.contains(self.sector_map[self.sector]['prefix']) == True) | (temp['property_reis_rc_id'].str.contains(self.sector_map[self.sector]['prefix']) == True)) & ((not self.include_cons) | (temp['first_year'] < self.curryr - 1) | (temp['first_year'].isnull() == True))]
         if len(temp) > 0:
             temp['flag'] = 'property linked to REIS id that is not live'
             temp['status'] = 'No Econ Link'
@@ -1129,7 +1141,7 @@ class PrepareLogs:
             temp['ids_to_add'] = np.where((temp['ids_to_add'].str[-1] == ','), temp['ids_to_add'].str[:-1].str.strip(), temp['ids_to_add'])
             id_check = id_check.append(temp.drop_duplicates('property_source_id')[['id_use', 'property_source_id', 'ids_to_add', 'flag', 'status']])
         temp = test_data.copy()
-        temp = temp[((temp['foundation_property_id'].isnull() == True) | (temp['foundation_property_id'] == '')) & ((temp['foundation_ids_list'] != '') | (temp['property_reis_rc_id'] != '')) & (temp['foundation_ids_list'].str.contains(self.sector_map[self.sector]['prefix']) == False) & (temp['property_reis_rc_id'].str.contains(self.sector_map[self.sector]['prefix']) == False)]
+        temp = temp[((temp['foundation_property_id'].isnull() == True) | (temp['foundation_property_id'] == '')) & ((temp['foundation_ids_list'] != '') | (temp['property_reis_rc_id'] != '')) & (temp['foundation_ids_list'].str.contains(self.sector_map[self.sector]['prefix']) == False) & (temp['property_reis_rc_id'].str.contains(self.sector_map[self.sector]['prefix']) == False) & ((not self.include_cons) | (temp['first_year'] < self.curryr - 1) | (temp['first_year'].isnull() == True))]
         if len(temp) > 0:
             temp['flag'] = 'property not linked to REIS id in this sector'
             temp['status'] = 'No Econ Link'
@@ -1158,7 +1170,7 @@ class PrepareLogs:
         test_data['id_use'] = test_data['id_use'].astype(str)
         
         temp = test_data.copy()
-        temp = temp[(temp['buildings_building_status'] != 'existing') & (temp['buildings_building_status'] != '') & (temp['leg'])]
+        temp = temp[(temp['building_status'] != 'existing') & (temp['building_status'] != '') & (temp['leg'])]
         if len(temp) > 0:
             temp['flag'] = 'REIS building complete, Catylist building UC'
             temp['status'] = 'dropped'
@@ -1257,21 +1269,21 @@ class PrepareLogs:
 
         elif self.sector == "ret":
             test_data['type2'] = test_data['type1']
-
+            
         if self.sector == "ind":
             test_data['space_size_available'] = np.where((test_data['space_size_available'] > 0) & (test_data['type2'] != 'F') & (test_data['space_industrial_size_sf'] > 100) & (test_data['space_industrial_size_sf'] <= test_data['space_size_available']) & (test_data['space_industrial_size_sf'] + test_data['space_office_size_sf'].fillna(0) == test_data['space_size_available']), test_data['space_industrial_size_sf'], test_data['space_size_available'])
-    
+
         return test_data
     
     def select_comp(self, test_data):
         
         temp = test_data.copy()
-        temp = temp[(temp['buildings_building_status'] != 'existing') & ((temp['buildings_building_status'] != '') | (temp['leg'] == False))]
+        temp = temp[(temp['building_status'] != 'existing') & ((temp['building_status'] != '') | (temp['leg'] == False))]
         if len(temp) > 0:
             temp['reason'] = 'building not complete'
             self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason', 'space_category']].drop_duplicates('property_source_id'), ignore_index=True)
         
-        test_data = test_data[(test_data['buildings_building_status'] == 'existing') | ((test_data['buildings_building_status'] == '') & (test_data['leg']))]
+        test_data = test_data[(test_data['building_status'] == 'existing') | ((test_data['building_status'] == '') & (test_data['leg']))]
         
         temp = test_data.copy()
         temp = temp[temp['category'] == 'land']
@@ -1345,7 +1357,6 @@ class PrepareLogs:
             test_data['tot_size'] = np.where((test_data['leg'] == False) & (test_data['mixed_check'] == False) & ((test_data['type2'] != 'F') | (self.sector !='ind')) & ((test_data[size_by_use] > 10000) | (self.sector == 'ret')) & ((test_data[size_by_use] <= test_data['tot_size']) | (test_data['tot_size'].isnull() == True)), test_data[size_by_use], test_data['tot_size'])
             test_data['metcode'] = np.where((test_data['leg'] == False), test_data['property_geo_msa_code'], test_data['metcode'])
             test_data['gsub'] = np.where((test_data['leg'] == False), test_data['property_geo_subid'], test_data['gsub'])
-            
             
         # Drop properties that have no spaces that are for publishable reis types for the sector
         # Also infer that space is leased in cases where a property is assigned a reis id, has no publishable space types in the listings data, but is not fully avail
@@ -1625,6 +1636,7 @@ class PrepareLogs:
 
         if period:
             test_data['lease_or_property_expenses_amount'] = test_data['occupancy_expenses_amount_amount']
+        
         test_data['use_prop_level'] = np.where((test_data['occupancy_expenses_amount_amount'] == test_data['lease_or_property_expenses_amount']) | ((test_data['lease_or_property_expenses_amount'] <= 0.2) & (test_data['occupancy_expenses_amount_amount'].isnull() == False) & (test_data['state'] != 'CA')), True, False)
         test_data['opex_norm'] = np.where((test_data['use_prop_level']) & (test_data['occupancy_expenses_size'] == 'total') & (test_data['space_size_available_leased'] > 0) & (test_data['space_size_available_leased'].isnull() == False), test_data['lease_or_property_expenses_amount'] / test_data['space_size_available_leased'], test_data['occupancy_expenses_amount_amount'])
         test_data['opex_norm'] = np.where((test_data['use_prop_level']) & (test_data['occupancy_expenses_period'] == 'monthly'), test_data['opex_norm'] * 12, test_data['opex_norm'])
@@ -2169,7 +2181,7 @@ class PrepareLogs:
             test_data['p_nsize'] = test_data['tot_size']
             test_data['s_gsize'] = test_data['tot_size']
             test_data['s_nsize'] = test_data['tot_size']
-            test_data['surstat'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0].str.upper())
+            test_data['surstat'] = np.where((test_data['building_status'] == '') | (test_data['building_status'].isnull() == True), 'C', test_data['building_status'].str[0].str.upper())
             test_data['surstat'] = np.where(test_data['surstat'] == 'E', 'C', test_data['surstat'])
             test_data['expstop'] = ''
             test_data['passthru'] = ''
@@ -2190,7 +2202,7 @@ class PrepareLogs:
             test_data['ceil_avg'] = np.where((test_data['buildings_physical_characteristics_clear_height_min_ft'].isnull() == True) & (test_data['buildings_physical_characteristics_clear_height_max_ft'].isnull() == False), test_data['buildings_physical_characteristics_clear_height_max_ft'], test_data['ceil_avg'])
             test_data['ceil_avg'] = np.where((test_data['buildings_physical_characteristics_clear_height_min_ft'].isnull() == False) & (test_data['buildings_physical_characteristics_clear_height_max_ft'].isnull() == True), test_data['buildings_physical_characteristics_clear_height_min_ft'], test_data['ceil_avg'])
             test_data['selected'] = 'A'
-            test_data['surstat'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0].str.upper())
+            test_data['surstat'] = np.where((test_data['building_status'] == '') | (test_data['building_status'].isnull() == True), 'C', test_data['building_status'].str[0].str.upper())
             test_data['surstat'] = np.where(test_data['surstat'] == 'E', 'C', test_data['surstat'])
             test_data['off_lowrent'] = np.nan
             test_data['off_hirent'] = np.nan
@@ -2211,7 +2223,7 @@ class PrepareLogs:
             test_data['n_lorent'] = np.nan
             test_data['n_hirent'] = np.nan
         
-        test_data['status'] = np.where((test_data['buildings_building_status'] == '') | (test_data['buildings_building_status'].isnull() == True), 'C', test_data['buildings_building_status'].str[0].str.upper())
+        test_data['status'] = np.where((test_data['building_status'] == '') | (test_data['building_status'].isnull() == True), 'C', test_data['building_status'].str[0].str.upper())
         test_data['status'] = np.where(test_data['status'] == 'E', 'C', test_data['status']) 
         test_data['lease_own'] = np.where((test_data['occupancy_owneroccupied'] == 0), 'L', '')
         test_data['lease_own'] = np.where(test_data['occupancy_owneroccupied'] == 1, 'O', test_data['lease_own'])
@@ -3023,16 +3035,17 @@ class PrepareLogs:
         nc_add = nc_add[(nc_add['buildings_condominiumized_flag'] == 0)]
 
         nc_add['size'] = nc_add['buildings_size_gross_sf']
-
+        
         nc_add['off_perc'] = np.nan
         if self.sector == "ind":
             nc_add['off_perc'] = np.where((nc_add['building_office_use_size_sf'].isnull() == False), nc_add['building_office_use_size_sf'] / nc_add['size'], (nc_add['size'] - nc_add['building_industrial_use_size_sf']) / nc_add['size'])
-            
+        
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
         nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']) & ((nc_add['off_perc'] < 0.25) | (nc_add['off_perc'].isnull() == True) | (~test_data['subcategory'].isin(['warehouse_flex', 'warehouse_office']))), nc_add[size_by_use], nc_add['size'])
         if self.sector in ['off', 'ind']:
             nc_add['size'] = np.where((nc_add['mixed_use_check']) & (nc_add[size_by_use].isnull() == True), nc_add['buildings_size_gross_sf'] - nc_add['building_retail_use_size_sf'], nc_add['size'])
             
+        
         nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
         nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
         nc_add['size'] = np.where((nc_add['subcategory'] == 'warehouse_distribution') & (nc_add['building_office_use_size_sf'] > 0) & (nc_add['size'] - nc_add['building_office_use_size_sf'] >= 10000), nc_add['size'] - nc_add['building_office_use_size_sf'], nc_add['size'])
@@ -3134,7 +3147,7 @@ class PrepareLogs:
                 nc_add['ceil_avg'] = np.where((nc_add['buildings_physical_characteristics_clear_height_min_ft'].isnull() == True) & (nc_add['buildings_physical_characteristics_clear_height_max_ft'].isnull() == False), nc_add['buildings_physical_characteristics_clear_height_max_ft'], nc_add['ceil_avg'])
                 nc_add['selected'] = ''
             elif self.sector == "ret":
-                nc_add['type1'] = np.where((nc_add['subcategory'].isin(['neighborhood_grocery_anchor', 'neighborhood_center', 'retail'])), 'N', 'C')
+                nc_add['type1'] = np.where((nc_add['subcategory'].isin(['neighborhood_grocery_anchor', 'neighborhood_center', 'big_box', 'retail'])), 'N', 'C')
                 nc_add['type2'] = nc_add['type1']
                 nc_add['surv_yr'] = self.curryr
                 nc_add['surv_qtr'] = np.ceil(self.currmon / 3)
