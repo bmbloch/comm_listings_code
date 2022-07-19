@@ -1079,7 +1079,7 @@ class PrepareLogs:
             temp['status'] = 'flagged'
         else:
             temp['status'] = 'dropped'
-        self.logic_log = self.logic_log.append(temp.rename(columns={'mult_ids': 'ids', 'logic_flag': 'flag'})[['ids', 'flag', 'property_source_id', 'status']], ignore_index=True)
+        self.logic_log = self.logic_log.append(temp.drop_duplicates(['property_source_id', 'logic_flag']).rename(columns={'mult_ids': 'ids', 'logic_flag': 'flag'})[['ids', 'flag', 'property_source_id', 'status']], ignore_index=True)
 
         test_data = self.choose_catylist_size(test_data, log)
             
