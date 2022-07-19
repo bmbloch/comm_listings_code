@@ -1297,10 +1297,20 @@ class PrepareLogs:
                 size_by_use = "building_industrial_size_sf"
             elif self.sector == "ret":
                 size_by_use = "building_retail_size_sf"
-
+            
+            test_data['mixed_check'] = False
+            test_data['mixed_check'] = np.where((test_data[size_by_use] > 0), True, test_data['mixed_check'])
+            if self.sector in ['off', 'ind']:
+                test_data['mixed_check'] = np.where((test_data['building_retail_size_sf'] > 100) & ((test_data['tot_size'] - test_data['building_retail_size_sf']) / test_data['tot_size'] > 0.25), True, test_data['mixed_check'])
+            test_data['mixed_check'] = np.where((test_data['subcategory'] != 'mixed_use'), False, test_data['mixed_check'])
+            
+            test_data['tot_size'] = np.where((test_data['mixed_check']) & (test_data[size_by_use] >0), test_data[size_by_use], test_data['tot_size'])
+            if self.sector in ['off', 'ind']:
+                test_data['tot_size'] = np.where((test_data['mixed_check']) & (test_data[size_by_use].isnull() == True), test_data['tot_size'] - test_data['building_retail_size_sf'], test_data['tot_size'])
+            
             test_data['reason'] = 'Keep'
-            test_data['reason'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['', 'mixed_use'])) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cat/subcat not publishable REIS type', test_data['reason'])
-            test_data['reason'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data[size_by_use].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is mixed use and no size by use data entered', test_data['reason'])
+            test_data['reason'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + [''])) & (test_data['mixed_check'] == False) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cat/subcat not publishable REIS type', test_data['reason'])
+            test_data['reason'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data['mixed_check']) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is mixed use and no size by use data entered', test_data['reason'])
             test_data['reason'] = np.where((test_data['subcategory'] == 'warehouse_office') & (self.sector == 'ind') & (test_data['building_industrial_size_sf'].isnull() == True) & (test_data['building_office_size_sf'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is warehouse_office and no size by use data entered', test_data['reason'])
             if 'buildings_condominiumized_flag' not in test_data.columns:
                 test_data['buildings_condominiumized_flag'] = 'N'
@@ -1320,16 +1330,17 @@ class PrepareLogs:
                 test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id').rename(columns={'reason': 'drop_this'})[['drop_this']], on='property_source_id')
                 test_data = test_data[(test_data['drop_this'].isnull() == True)]
                 test_data = test_data.drop(['drop_this', 'reason'],axis=1)
-
+                
             if self.sector == 'ind':
                 test_data['off_perc'] = np.where((test_data['building_office_size_sf'].isnull() == False), test_data['building_office_size_sf'] / test_data['tot_size'], np.nan)
                 test_data['off_perc'] = np.where((test_data['building_industrial_size_sf'].isnull() == False) & (test_data['building_industrial_size_sf'] <= test_data['tot_size']), (test_data['tot_size'] - test_data['building_industrial_size_sf']) / test_data['tot_size'], test_data['off_perc'])
                 test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] >= 0.25), 'F', test_data['type2'])
                 test_data['type2'] = np.where((test_data['leg'] == False) & ((test_data['off_perc'] < 0.25) | (test_data['off_perc'].isnull() == True)), 'W', test_data['type2'])
             
-            test_data['tot_size'] = np.where((test_data['leg'] == False) & ((test_data['type2'] != 'F') | (self.sector !='ind')) & ((test_data[size_by_use] > 10000) | (self.sector == 'ret')) & ((test_data[size_by_use] <= test_data['tot_size']) | (test_data['tot_size'].isnull() == True)), test_data[size_by_use], test_data['tot_size'])
+            test_data['tot_size'] = np.where((test_data['leg'] == False) & (test_data['mixed_check'] == False) & ((test_data['type2'] != 'F') | (self.sector !='ind')) & ((test_data[size_by_use] > 10000) | (self.sector == 'ret')) & ((test_data[size_by_use] <= test_data['tot_size']) | (test_data['tot_size'].isnull() == True)), test_data[size_by_use], test_data['tot_size'])
             test_data['metcode'] = np.where((test_data['leg'] == False), test_data['property_geo_msa_code'], test_data['metcode'])
             test_data['gsub'] = np.where((test_data['leg'] == False), test_data['property_geo_subid'], test_data['gsub'])
+            
             
         # Drop properties that have no spaces that are for publishable reis types for the sector
         # Also infer that space is leased in cases where a property is assigned a reis id, has no publishable space types in the listings data, but is not fully avail
