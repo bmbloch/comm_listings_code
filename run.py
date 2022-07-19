@@ -56,7 +56,6 @@ def get_dicts():
     rename_dict_all = {'off': {
                                 'realid': 'id_use',
                                 'survdate': 'surv_date',
-                                'metcode': 'msa',
                                 'subid': 'gsub',
                                 'size': 'tot_size',
                                 'propname': 'property_name',
@@ -85,7 +84,6 @@ def get_dicts():
                                 'realyr': 'surv_yr',
                                 'qtr': 'surv_qtr',
                                 'survdate': 'surv_date',
-                                'metcode': 'msa',
                                 'subid': 'gsub',
                                 'ind_size': 'tot_size',
                                 'propname': 'property_name',
@@ -118,7 +116,6 @@ def get_dicts():
                        'ret': {
                                 'realid': 'id_use',
                                 'survdate': 'surv_date',
-                                'metcode': 'msa',
                                 'subid': 'gsub',
                                 'propname': 'property_name',
                                 'year': 'first_year',
