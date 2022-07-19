@@ -108,7 +108,7 @@ if datetime.today().weekday() != 0:
     delta_val = 1
 else:
     delta_val = 3
-test = test[(test['survey_legacy_data_source'] == '') & (test['survdate_d'] == datetime.strftime(date.today() - timedelta(days = delta_val), '%m/%d/%Y'))][['property_source_id', 'survdate']]
+test = test[(test['survey_legacy_data_source'] == '') & (test['survdate_d'] == datetime.strftime(date.today() - timedelta(days = delta_val), '%Y-%m-%d'))][['property_source_id', 'survdate']]
 if len(test) == 0:
     print("There are no incremental surveys for {}".format(datetime.strftime(date.today() - timedelta(days = delta_val), '%m/%d/%Y')))
 del test
