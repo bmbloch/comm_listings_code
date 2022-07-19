@@ -38,7 +38,7 @@ import json
 from datetime import timedelta
 
 curryr = 2022
-currmon = 6
+currmon = 7
 use_reis_yr = True # Set this to true if want to override the RDMA year built and month built values with Foundation values
 
 logger = logging.getLogger()
@@ -230,7 +230,7 @@ test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 test['in_log'] = 1
 df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 
-for col in ['buildings_condominiumized']:
+for col in ['buildings_condominiumized_flag']:
     df[col] = np.where((df[col] == 'Y'), 1, 0)
 
 df['section_8_housing'] = np.where((df['section_8_housing'].isnull() == True), 0, df['section_8_housing'])
