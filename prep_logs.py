@@ -3649,7 +3649,7 @@ class PrepareLogs:
         self.logic_log = self.logic_log[l_col_order]
         size_method['property_source_id'] = size_method['property_source_id'].astype(str)
         self.logic_log = self.logic_log.join(size_method.drop_duplicates('property_source_id').set_index('property_source_id')[['size_method']], on='property_source_id')
-        self.logic_log.to_csv("{}/OutputFiles/{}/logic_logs/logic_log_{}m{}.csv".format(self.home, self.sector, self.curryr, self.currmon), index=False)
+        self.logic_log.drop_duplicates(['property_source_id', 'flag']).to_csv("{}/OutputFiles/{}/logic_logs/logic_log_{}m{}.csv".format(self.home, self.sector, self.curryr, self.currmon), index=False)
 
         self.drop_log['realid'] = np.where((self.drop_log['realid'].isnull() == True) | (self.drop_log['realid'] == ''), self.drop_log['id_use'], self.drop_log['realid'])
         self.drop_log['realid'] = np.where((self.drop_log['realid'].str[0] != self.sector_map[self.sector]['prefix']) & (self.drop_log['realid'] != '') & (self.drop_log['realid'].isnull() == False) & (self.drop_log['realid'].str.contains(',') == False), self.sector_map[self.sector]['prefix'] + self.drop_log['realid'], self.drop_log['realid'])
