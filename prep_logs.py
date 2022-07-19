@@ -1108,7 +1108,7 @@ class PrepareLogs:
                     temp1['status'] = 'Econ Link'
                     id_check = id_check.append(temp1.drop_duplicates('property_source_id')[['id_use', 'property_source_id', 'flag', 'status']])
             
-            temp = temp[((temp['mult_rc_tag'] == False) | (not self.legacy_only)) & (temp['foundation_ids_list'] == '') & (temp['property_reis_rc_id'] == '') & (temp['foundation_property_id'] == '')]
+            temp = temp[((temp['mult_rc_tag'] == False) | (not self.legacy_only)) & (temp['foundation_ids_list'] == '') & (temp['property_reis_rc_id'] == '') & (temp['foundation_property_id'] == '') & ((not self.include_cons) | (temp['first_year'] < self.curryr - 1) | (temp['first_year'].isnull() == True))]
             if len(temp) > 0:
                 temp['flag'] = 'no REIS Catylist ER link'
                 temp['status'] = 'No Econ Link'
