@@ -1181,7 +1181,7 @@ class PrepareLogs:
         test_data['id_use'] = np.where((test_data['id_use'] != '') & (test_data['leg']), test_data['id_use'].str[1:], test_data['id_use'])
 
         # Add an alpha char to all non legacy properties, to avoid the potential for id overlap
-        test_data['id_use'] = np.where((test_data['leg'] == False) & (test_data['property_source_id'].str.isdigit()), 'a' + test_data['property_source_id'], test_data['property_source_id'])
+        test_data['id_use'] = np.where((test_data['leg'] == False) & (test_data['property_source_id'].str.isdigit()), 'a' + test_data['property_source_id'], test_data['id_use'])
         
         if self.sector == "off" or self.sector == "ind":
             test_data['phase'] = test_data['phase'].astype(int)  
