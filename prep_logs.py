@@ -2999,6 +2999,9 @@ class PrepareLogs:
             size_by_use = "building_retail_use_size_sf"
             
         nc_add['mixed_use_check'] = np.where((nc_add['subcategory'] == 'mixed_use') & (nc_add[size_by_use] > 0), True, False)
+        if self.sector in ['off', 'ind']:
+            nc_add['mixed_use_check'] = np.where((nc_add['building_retail_use_size_sf'] > 100) & ((nc_add['buildings_size_gross_sf'] - nc_add['building_retail_use_size_sf']) / nc_add['buildings_size_gross_sf'] > 0.25), True, nc_add['mixed_use_check'])
+            
         
         nc_add = nc_add[((nc_add['category'].isin(self.sector_map[self.sector]['category'])) & (nc_add['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['']))) | (nc_add['mixed_use_check'])]
         
@@ -3021,7 +3024,9 @@ class PrepareLogs:
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
         nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']) & ((nc_add['off_perc'] < 0.25) | (nc_add['off_perc'].isnull() == True) | (~test_data['subcategory'].isin(['warehouse_flex', 'warehouse_office']))), nc_add[size_by_use], nc_add['size'])
-        
+        if self.sector in ['off', 'ind']:
+            nc_add['size'] = np.where((nc_add['mixed_use_check']) & (nc_add[size_by_use].isnull() == True), nc_add['buildings_size_gross_sf'] - nc_add['building_retail_use_size_sf'], nc_add['size'])
+            
         nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] >= 0.25), 'warehouse_flex', nc_add['subcategory'])
         nc_add['subcategory'] = np.where(((nc_add['subcategory'] == 'warehouse_office') | (nc_add['subcategory'] == '')) & (nc_add['off_perc'] < 0.25), 'warehouse_distribution', nc_add['subcategory'])
         nc_add['size'] = np.where((nc_add['subcategory'] == 'warehouse_distribution') & (nc_add['building_office_use_size_sf'] > 0) & (nc_add['size'] - nc_add['building_office_use_size_sf'] >= 10000), nc_add['size'] - nc_add['building_office_use_size_sf'], nc_add['size'])
