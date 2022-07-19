@@ -189,6 +189,7 @@ class PrepareLogs:
             
         self.drop_log = pd.DataFrame()
         self.logic_log = pd.DataFrame()
+        self.drop_nc_log = pd.DataFrame()
 
         return test_data_in, self.stop
 
@@ -3041,7 +3042,7 @@ class PrepareLogs:
             nc_add['off_perc'] = np.where((nc_add['building_office_use_size_sf'].isnull() == False), nc_add['building_office_use_size_sf'] / nc_add['size'], (nc_add['size'] - nc_add['building_industrial_use_size_sf']) / nc_add['size'])
         
         nc_add['size'] = np.where((nc_add['buildings_size_rentable_sf'] > 0), nc_add['buildings_size_rentable_sf'], nc_add['size'])
-        nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']) & ((nc_add['off_perc'] < 0.25) | (nc_add['off_perc'].isnull() == True) | (~test_data['subcategory'].isin(['warehouse_flex', 'warehouse_office']))), nc_add[size_by_use], nc_add['size'])
+        nc_add['size'] = np.where((nc_add[size_by_use] > 0) & (nc_add[size_by_use] <= nc_add['size']) & ((nc_add['off_perc'] < 0.25) | (nc_add['off_perc'].isnull() == True) | (~nc_add['subcategory'].isin(['warehouse_flex', 'warehouse_office']))), nc_add[size_by_use], nc_add['size'])
         if self.sector in ['off', 'ind']:
             nc_add['size'] = np.where((nc_add['mixed_use_check']) & (nc_add[size_by_use].isnull() == True), nc_add['buildings_size_gross_sf'] - nc_add['building_retail_use_size_sf'], nc_add['size'])
             
