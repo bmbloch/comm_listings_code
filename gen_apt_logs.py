@@ -319,12 +319,13 @@ drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property
 df = df[~df['property_source_id'].isin(drop_list)]
 
 temp = df.copy()
-temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) & (temp['in_log'].isnull() == True) & (temp['totunits'].isnull() == True)]
+temp = temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) & (temp['in_log'].isnull() == True) & (temp['totunits'].isnull() == True)]
 temp['reason'] = 'Net new NC property but no total units'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 temp['drop_this'] = 1
 df = df.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['drop_this']], on='property_source_id')
 df = df[df['drop_this'].isnull() == True]
+print('Property count after removing potential nc properties without total units: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
 temp = temp.drop_duplicates('property_source_id')
