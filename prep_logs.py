@@ -464,7 +464,13 @@ class PrepareLogs:
             if self.legacy_only:
                 test_data['mult_rc_tag'] = np.where((test_data['count'] > 1) & ((test_data['count_bp'] > 1) | (test_data['businesspark'] == '')) & (temp['property_reis_rc_id'] != '') & (temp['property_reis_rc_id'].str[0] == self.sector_map[self.sector]['prefix']), True, test_data['mult_rc_tag'])
         if self.use_rc_id:
-            test_data['property_reis_rc_id'] = np.where((test_data['count'] > 1) & ((test_data['count_bp'] > 1) | (test_data['businesspark'] == '')) & (test_data['property_reis_rc_id'] != ''), '', test_data['property_reis_rc_id'])
+            temp = test_data.copy()
+            temp = temp[(temp['buildings_building_status'] != 'existing') & (temp['buildings_building_status'] != '') & (temp['property_reis_rc_id'] != '')]
+            temp = temp.drop_duplicates('property_reis_rc_id')
+            temp['count_nonexist'] = temp.groupby('property_reis_rc_id')['property_source_id'].transform('count')
+            test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['count_nonexist']], on='property_source_id')
+            test_data['count_nonexist'] = test_data['count_nonexist'].fillna(0)
+            test_data['property_reis_rc_id'] = np.where((test_data['count'] > 1) & (test_data['count'] > test_data['count_nonexist'] + 1) & ((test_data['count_bp'] > 1) | (test_data['businesspark'] == '')) & (test_data['property_reis_rc_id'] != ''), '', test_data['property_reis_rc_id'])
         
         test_data['avail_date_dt'] = pd.to_datetime(test_data['availability_availabledate'], errors='coerce')
         test_data['vac_date_dt'] = pd.to_datetime(test_data['availability_vacantdate'], errors='coerce')
@@ -721,7 +727,6 @@ class PrepareLogs:
             
             count = 0
             found_ids = []
-            temp = {}
             prop_choice = ''
             msa_choice = ''
             sub_choice = np.nan
