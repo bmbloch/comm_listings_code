@@ -1300,25 +1300,29 @@ class PrepareLogs:
             elif self.sector == "ret":
                 size_by_use = "building_retail_size_sf"
 
-            test_data['include'] = False
-            test_data['include'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + [''])), False, test_data['include'])
-            test_data['include'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data[size_by_use] > 0), True, test_data['include'])
-            test_data['include'] = np.where((test_data['subcategory'] == 'warehouse_office') & (self.sector == 'ind') & (test_data['building_industrial_size_sf'].isnull() == True) & (test_data['building_office_size_sf'].isnull() == True), False, test_data['include'])
+            test_data['reason'] = 'Keep'
+            test_data['reason'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['', 'mixed_use'])) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cat/subcat not publishable REIS type', test_data['reason'])
+            test_data['reason'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data[size_by_use].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is mixed use and no size by use data entered', test_data['reason'])
+            test_data['reason'] = np.where((test_data['subcategory'] == 'warehouse_office') & (self.sector == 'ind') & (test_data['building_industrial_size_sf'].isnull() == True) & (test_data['building_office_size_sf'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is warehouse_office and no size by use data entered', test_data['reason'])
             if 'buildings_condominiumized_flag' not in test_data.columns:
                 test_data['buildings_condominiumized_flag'] = 'N'
-            test_data['include'] = np.where((test_data['buildings_condominiumized_flag'] == 'Y'), False, test_data['include'])
-            test_data['include'] = np.where(((test_data['retail_center_type'] != '') | (test_data['subcategory'] == '')) & (self.sector == 'ret'), False, test_data['include'])
-            test_data['include'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000), False, test_data['include'])
-            test_data['include'] = np.where((test_data['property_geo_msa_code'] == '') | (test_data['property_geo_subid'].isnull() == True), False, test_data['include'])
-            test_data['include'] = np.where((test_data['first_year'] > self.curryr) | ((test_data['first_year'] == self.curryr) & (test_data['buildings_construction_expected_completion_month'] > self.currmon)), False, test_data['include'])
-            test_data['include'] = np.where((test_data['leg']), True, test_data['include'])
+            test_data['reason'] = np.where((test_data['buildings_condominiumized_flag'] == 'Y') & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, non comp condo', test_data['reason'])
+            test_data['reason'] = np.where(((test_data['retail_center_type'] != '') | (test_data['subcategory'] == '')) & (self.sector == 'ret') & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cannot determine N or C subcat', test_data['reason'])
+            test_data['reason'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, size less than 10k sqft', test_data['reason'])
+            test_data['reason'] = np.where((test_data['property_geo_msa_code'] == '') | (test_data['property_geo_subid'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, no geo msa or subid', test_data['reason'])
+            test_data['reason'] = np.where((test_data['first_year'] > self.curryr) | ((test_data['first_year'] == self.curryr) & (test_data['buildings_construction_expected_completion_month'] > self.currmon)) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, completion date in future', test_data['reason'])
+            test_data['reason'] = np.where((test_data['first_year'] >= self.curryr - 3) & (test_data['buildings_construction_expected_completion_month'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, in NC rebench window and missing month built', test_data['reason'])
+            test_data['reason'] = np.where((test_data['first_year'] >= self.curryr - 3) & (test_data['tot_size'].isnull() == True) & (test_data[size_by_use].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, in NC rebench window and missing total size', test_data['reason'])
             
             temp = test_data.copy()
-            temp = temp[temp['include'] == False]
+            temp = temp[temp['reason'].str[0:7] == 'Net New']
             if len(temp) > 0:
-                temp['reason'] = 'Net new Catylist property not eligible for inclusion'
-                self.drop_log = self.drop_log.append(temp[['property_source_id', 'id_use', 'reason']].drop_duplicates('property_source_id'), ignore_index=True)
-            test_data = test_data[(test_data['include'])]
+                self.drop_log = self.drop_log.append(temp[['property_source_id', 'reason']].drop_duplicates('property_source_id'), ignore_index=True)
+                
+                test_data = test_data.join(temp.drop_duplicates('property_source_id').set_index('property_source_id').rename(columns={'reason': 'drop_this'})[['drop_this']], on='property_source_id')
+                test_data = test_data[(test_data['drop_this'].isnull() == True)]
+                test_data = test_data.drop(['drop_this', 'reason'],axis=1)
+
             if self.sector == 'ind':
                 test_data['off_perc'] = np.where((test_data['building_office_size_sf'].isnull() == False), test_data['building_office_size_sf'] / test_data['tot_size'], np.nan)
                 test_data['off_perc'] = np.where((test_data['building_industrial_size_sf'].isnull() == False) & (test_data['building_industrial_size_sf'] <= test_data['tot_size']), (test_data['tot_size'] - test_data['building_industrial_size_sf']) / test_data['tot_size'], test_data['off_perc'])
