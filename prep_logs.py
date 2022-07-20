@@ -2941,7 +2941,7 @@ class PrepareLogs:
                     
         return inc, log_aligned
     
-    def append_nc_completions(self, combo, d_prop):
+    def append_nc_completions(self, combo, d_prop, log):
         
         if len(d_prop) == 0 and self.home[0:2] == 's3' and self.live_load:
             logging.info('Loading D_Property...')
@@ -3148,6 +3148,19 @@ class PrepareLogs:
             temp['reason'] = 'property not assigned geo met or sub'
             self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason']])
         nc_add = nc_add[(nc_add['property_geo_msa_code'] != '') & (nc_add['property_geo_subid'].isnull() == False)]
+
+        temp1 = log.copy()
+        temp1 = temp1[(temp1['metcode'].isnull() == False) & (temp1['metcode'] != '') & (temp1['subid'].isnull() == False)]
+        temp1['met_sub'] = temp1['metcode'] + '/' + temp1['subid'].astype(str).str.split('.').str[0]
+        valid_combos = list(temp1.drop_duplicates('met_sub')['met_sub'])
+        temp['met_sub'] = temp['property_geo_msa_code']  + '/' + temp['property_geo_subid'].astype(str).str.split('.').str[0]                
+        nc_add['met_sub'] = nc_add['property_geo_msa_code']  + '/' + nc_add['property_geo_subid'].astype(str).str.split('.').str[0]                
+        temp = nc_add.copy()
+        temp = temp[(~temp['met_sub'].isin(valid_combos))]
+        if len(temp) > 0:
+            temp['reason'] = 'met/sub combination not valid for this sector'
+            self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason']])
+        nc_add = nc_add[(nc_add['met_sub'].isin(valid_combos))]
         
         temp_combo['realid'] = temp_combo['realid'].astype(str)
         log_ids = list(temp_combo.drop_duplicates('realid')['realid'])
@@ -3395,7 +3408,7 @@ class PrepareLogs:
                         self.stop = True
                         display(temp[temp['count'] != 1][['realid', key, 'count']].sort_values(by='realid').drop_duplicates(['realid', key]).head(10))
                         
-            d_prop, combo, nc_add = self.append_nc_completions(combo, d_prop)
+            d_prop, combo, nc_add = self.append_nc_completions(combo, d_prop, log)
             
             if not self.stop:
                 test_data = test_data[self.orig_cols + ['property_source_id', 'leg']]
