@@ -338,7 +338,7 @@ def get_dicts():
 
 sectors = ['off', 'ind', 'ret']
 curryr = 2022
-currmon = 6
+currmon = 7
 legacy_only = True # set to True if only want to keep properties that were in the legacy foundation database or are within the NC rebench window of curryr - 3
 include_cons = False # Set to True if want to include Catylist non legacy REIS props with a completion year within the curryr - 3 construction rebench window, even if legacy_only is True
 use_rc_id = True # set to True if rc_id should be used to link properties in the event that there is no live link from ER
