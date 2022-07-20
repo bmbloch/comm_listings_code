@@ -430,7 +430,7 @@ try:
             test_data = test_data.rename(columns={'reis_sector': 'catylist_sector'})
 
             # Read in the individual metro log files and append to one aggregated dataframe
-            #log = prepLogs.read_logs()
+            log = prepLogs.read_logs()
             for x in ['listed_space_id', 'leg', 'property_source_id', 'total_size']:
                 if x in log.columns:
                     log = log.drop([x], axis=1)
