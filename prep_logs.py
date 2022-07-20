@@ -1267,7 +1267,7 @@ class PrepareLogs:
         elif self.sector == "ind": 
             type2_default = 'W'
         if self.sector != 'ret':
-            test_data['type2'] = np.where(((test_data['type2'] == '') | (test_data['type2'].isnull() == True)) & (test_data['leg'] == 'no'), type2_default, test_data['type2'])
+            test_data['type2'] = np.where(((test_data['type2'] == '') | (test_data['type2'].isnull() == True)) & (test_data['leg'] == False), type2_default, test_data['type2'])
 
         elif self.sector == "ret":
             test_data['type2'] = test_data['type1']
