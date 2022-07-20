@@ -1338,7 +1338,7 @@ class PrepareLogs:
             
             temp = log.copy()
             temp = temp[(temp['metcode'].isnull() == False) & (temp['metcode'] != '') & (temp['subid'].isnull() == False)]
-            temp['met_sub'] = temp['metcode'] + '/' + log['subid'].astype(str).str.split('.').str[0]
+            temp['met_sub'] = temp['metcode'] + '/' + temp['subid'].astype(str).str.split('.').str[0]
             valid_combos = list(temp.drop_duplicates('met_sub')['met_sub'])
             test_data['met_sub'] = test_data['property_geo_msa_code']  + '/' + test_data['property_geo_subid'].astype(str).str.split('.').str[0]                
                 
