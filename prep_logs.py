@@ -2852,7 +2852,7 @@ class PrepareLogs:
 
         logging.info('\n')
         
-    def align_structurals(self, inc, log_aligned, first):
+    def align_structurals(self, inc, log_aligned):
         
         if self.sector == "off" or self.sector == "ret":
             log_aligned.sort_values(by=['surv_yr', 'surv_qtr'], ascending=[False, False], inplace=True)
@@ -2872,14 +2872,14 @@ class PrepareLogs:
                 
             if value['structural'] and value['promote'] == 'R':
                 
-                inc['test'] = np.where((inc['property_source_id'].str[1:].str.isdigit()) & (inc['realid'].str[0] == 'a'), inc['realid'].str[1:], inc['realid']) 
+                log_aligned['in_log'] = 1
                 log_aligned[key + '_log'] = log_aligned[key]
-                inc = inc.join(log_aligned.drop_duplicates('realid').set_index('realid')[[key + '_log']], on='realid')
+                inc = inc.join(log_aligned.drop_duplicates('realid').set_index('realid')[[key + '_log', 'in_log']], on='realid')
                 inc[key] = np.where((inc[key] != inc[key + '_log']) & (inc[key + '_log'].isnull() == False), inc[key + '_log'], inc[key])
                 if key not in ['propname', 'address', 'city', 'zip', 'county', 'state', 'fipscode']:
-                    inc[key] = np.where((inc[key + '_log'].isnull() == True) & ((inc['test'] != inc['property_source_id']) | (not first)), np.nan, inc[key])
-                log_aligned = log_aligned.drop([key + '_log'], axis=1)
-                inc = inc.drop([key + '_log', 'test'], axis=1)
+                    inc[key] = np.where((inc[key + '_log'].isnull() == True) & (inc['in_log'] == 1), np.nan, inc[key])
+                log_aligned = log_aligned.drop([key + '_log', 'in_log'], axis=1)
+                inc = inc.drop([key + '_log', 'in_log'], axis=1)
 
             elif value['structural'] and value['promote'] == 'C':
 
@@ -3231,7 +3231,7 @@ class PrepareLogs:
                 temp_aggreg[key] = temp_aggreg.groupby('realid')[key].ffill()
 
         if len(dir_list) > 0:
-            temp_aggreg, log_aligned = self.align_structurals(temp_aggreg, log_aligned, True)
+            temp_aggreg, log_aligned = self.align_structurals(temp_aggreg, log_aligned)
             log_aligned = log_aligned.append(temp_aggreg, ignore_index=True)
 
         if len(dir_list) == 0:
@@ -3239,7 +3239,7 @@ class PrepareLogs:
         logging.info("\n")
 
 
-        test_data, log_aligned = self.align_structurals(test_data, log_aligned, False)
+        test_data, log_aligned = self.align_structurals(test_data, log_aligned)
 
         if len(test_data) > 0:
             self.val_check(test_data)
