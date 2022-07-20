@@ -1329,7 +1329,7 @@ class PrepareLogs:
             
             test_data['reason'] = 'Keep'
             test_data['reason'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + [''])) & (test_data['mixed_check'] == False) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cat/subcat not publishable REIS type', test_data['reason'])
-            test_data['reason'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data['mixed_check']) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is mixed use and no size by use data entered', test_data['reason'])
+            test_data['reason'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data['mixed_check'] == False) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is mixed use and no size by use data entered', test_data['reason'])
             test_data['reason'] = np.where((test_data['subcategory'] == 'warehouse_office') & (self.sector == 'ind') & (test_data['building_industrial_size_sf'].isnull() == True) & (test_data['building_office_size_sf'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is warehouse_office and no size by use data entered', test_data['reason'])
             if 'buildings_condominiumized_flag' not in test_data.columns:
                 test_data['buildings_condominiumized_flag'] = 'N'
