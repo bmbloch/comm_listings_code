@@ -403,7 +403,7 @@ class PrepareLogs:
     
         test_data['property_reis_rc_id'] = np.where(test_data['property_reis_rc_id'] == 'None', '', test_data['property_reis_rc_id'])
         test_data['property_reis_rc_id'] = test_data['property_reis_rc_id'].str.replace('-', '')
-
+        
         to_lower = ['building_status', 'availability_status', 'occupancy_type', 'category', 'subcategory',
                    'space_category', 'lease_asking_rent_price_period', 'lease_asking_rent_price_size', 'occupancy_expenses_period',
                    'occupancy_expenses_size', 'occupancy_cam_period', 'occupancy_cam_size', 'lease_transaction_rent_price_period', 
@@ -3167,6 +3167,10 @@ class PrepareLogs:
             
             for col, rename in rename_cols.items():
                 nc_add.rename(columns={col: rename}, inplace=True)
+
+            nc_add['zip'] = np.where((nc_add['zip'].str.contains('-') == True), nc_add['zip'].str.split('-').str[0], nc_add['zip'])
+            nc_add['zip'] = np.where((nc_add['zip'].str.isdigit() == False), np.nan, nc_add['zip'])
+            nc_add['zip'] = nc_add['zip'].astype(float)
         
             for col in nc_add:
                 if col not in combo.columns:
