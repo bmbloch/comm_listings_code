@@ -3299,6 +3299,11 @@ class PrepareLogs:
                 if len(nc_add) > 0:
                     nc_add['leg'] = False
                     test_data = test_data.append(nc_add[[x for x in test_data.columns if x in nc_add.columns]], ignore_index=False)
+                    nc_add['in_nc_add'] = 1
+                    self.drop_log = self.drop_log.join(nc_add.drop_duplicates('property_source_id').set_index('property_source_id')[['in_nc_add']], on='property_source_id')
+                    self.drop_log = self.drop_log[self.drop_log['in_nc_add'].isnull() == True]
+                    self.drop_log = self.drop_log,drop(['in_nc_add'], axis=1)
+                    nc_add = nc_add.drop(['in_nc_add'], axis=1)
                 test_data.to_csv('{}/OutputFiles/{}/snapshots/{}m{}_snapshot_{}.csv'.format(self.home, self.sector, self.curryr, self.currmon, self.sector), index=False)
                 
                 combo.sort_values(by=['metcode', 'realid'], ascending=[True, True], inplace=True)
