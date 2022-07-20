@@ -404,7 +404,7 @@ def assign_met(test_data, log):
 
 try:
 
-    print("Process for {}m{}, initiated, check log for progress".format(curryr, currmon))
+    print("Process for {}m{} initiated, check log for progress".format(curryr, currmon))
     print("\n")
     
     consistency_dict, type_dict_all, rename_dict_all, sector_map, space_map = get_dicts()
