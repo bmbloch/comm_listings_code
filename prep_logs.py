@@ -3158,7 +3158,7 @@ class PrepareLogs:
                 nc_add['anc_term'] = ''
                 nc_add['non_term'] = ''
 
-            nc_add['survdate'] = ''.format(self.currmon, '15', self.curryr)
+            nc_add['survdate'] = '{}/{}/{}'.format(self.currmon, '15', self.curryr)
             nc_add['source'] = 'nc no surv'
 
             nc_add['leg'] = 'no'
