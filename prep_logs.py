@@ -3809,7 +3809,8 @@ class PrepareLogs:
                     d_col_order = d_col_order + [col]
         self.drop_log = self.drop_log[d_col_order]
         self.drop_log.to_csv("{}/OutputFiles/{}/logic_logs/drop_log_{}m{}.csv".format(self.home, self.sector, self.curryr, self.currmon), index=False)
-    
+        self.drop_nc_log.to_csv("{}/OutputFiles/{}/logic_logs/drop_nc_log_{}m{}.csv".format(self.home, self.sector, self.curryr, self.currmon), index=False)
+        
         self.gen_coverage_graphs(test_data_in, r_surv_graph, log, id_check, test_data, pre_drop, mult_prop_link)
     
         if sector == sectors[-1] and len(sectors) == 3:
