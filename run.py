@@ -501,7 +501,7 @@ try:
 
                     # Drop properties/listings that do not meet REIS sector specific inclusion criteria
                     pre_drop = test_data[test_data['leg']][['property_source_id', 'id_use']].copy()
-                    test_data = prepLogs.select_comp(test_data)
+                    test_data = prepLogs.select_comp(test_data, log)
 
                     # See if there are cases where a property might have a duplicate avail but one for direct and one for sublet
                     test_data = prepLogs.check_double_sublet(test_data)
