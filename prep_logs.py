@@ -3303,7 +3303,7 @@ class PrepareLogs:
                     nc_add['in_nc_add'] = 1
                     self.drop_log = self.drop_log.join(nc_add.drop_duplicates('property_source_id').set_index('property_source_id')[['in_nc_add']], on='property_source_id')
                     self.drop_log = self.drop_log[self.drop_log['in_nc_add'].isnull() == True]
-                    self.drop_log = self.drop_log,drop(['in_nc_add'], axis=1)
+                    self.drop_log = self.drop_log.drop(['in_nc_add'], axis=1)
                     nc_add = nc_add.drop(['in_nc_add'], axis=1)
                 test_data.to_csv('{}/OutputFiles/{}/snapshots/{}m{}_snapshot_{}.csv'.format(self.home, self.sector, self.curryr, self.currmon, self.sector), index=False)
                 
