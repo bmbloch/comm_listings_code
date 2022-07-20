@@ -408,7 +408,7 @@ class PrepareLogs:
                    'space_category', 'lease_asking_rent_price_period', 'lease_asking_rent_price_size', 'occupancy_expenses_period',
                    'occupancy_expenses_size', 'occupancy_cam_period', 'occupancy_cam_size', 'lease_transaction_rent_price_period', 
                    'lease_transaction_rent_price_size', 'street_address', 'lease_terms', 'space_floor', 'space_suite', 
-                   'listed_space_title']
+                   'listed_space_title', 'retail_center_type']
         
         for col in to_lower:
             test_data[col] = test_data[col].str.lower()
@@ -417,7 +417,7 @@ class PrepareLogs:
                           'retail_property_is_anchor_flag', 'property_source_id', 'property_reis_rc_id',
                           'foundation_ids_list', 'catylist_sector', 'property_geo_msa_list', 
                           'property_geo_subid_list', 'street_address', 'commission_description', 'lease_terms', 
-                          'space_floor', 'space_suite', 'listed_space_title', 'state', 'property_geo_msa_code']
+                          'space_floor', 'space_suite', 'listed_space_title', 'state', 'property_geo_msa_code','retail_center_type']
         
         for col in null_to_string:
             test_data[col] = np.where((test_data[col].isnull() == True), '', test_data[col])
