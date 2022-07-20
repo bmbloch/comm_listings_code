@@ -336,7 +336,7 @@ def get_dicts():
 
     return consistency_dict, type_dict_all, rename_dict_all, sector_map, space_map
 
-sectors = ['off']
+sectors = ['off', 'ind', 'ret']
 curryr = 2022
 currmon = 7
 legacy_only = True # set to True if only want to keep properties that were in the legacy foundation database or are within the NC rebench window of curryr - 3
