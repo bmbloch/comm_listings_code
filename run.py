@@ -336,11 +336,11 @@ def get_dicts():
 
     return consistency_dict, type_dict_all, rename_dict_all, sector_map, space_map
 
-sectors = ['off', 'ind', 'ret']
+sectors = ['off']
 curryr = 2022
 currmon = 7
 legacy_only = True # set to True if only want to keep properties that were in the legacy foundation database or are within the NC rebench window of curryr - 3
-include_cons = False # Set to True if want to include Catylist non legacy REIS props with a completion year within the curryr - 3 construction rebench window, even if legacy_only is True
+include_cons = True # Set to True if want to include Catylist non legacy REIS props with a completion year within the curryr - 3 construction rebench window, even if legacy_only is True
 use_rc_id = True # set to True if rc_id should be used to link properties in the event that there is no live link from ER
 use_reis_sub = True # set to True if we should take the log met/sub values in the case of a discrepancy to what is given in the view
 use_mult = True # set to True if we should choose the first option for a REIS id link  in the case of multiple live linkages, instead of dropping cases where this occurs
@@ -430,7 +430,7 @@ try:
             test_data = test_data.rename(columns={'reis_sector': 'catylist_sector'})
 
             # Read in the individual metro log files and append to one aggregated dataframe
-            log = prepLogs.read_logs()
+            #log = prepLogs.read_logs()
             for x in ['listed_space_id', 'leg', 'property_source_id', 'total_size']:
                 if x in log.columns:
                     log = log.drop([x], axis=1)
@@ -470,7 +470,7 @@ try:
                 
                 # Identify the correct Foundation ID, MSA, and Subid to link to the Catylist property
                 log_ids = list(log.drop_duplicates('realid')['realid'])
-                
+
                 split_data = assign_met(test_data, log)
                 pool = mp.Pool(splits)
                 result_async = [pool.apply_async(prepLogs.select_reis_id, args = (data, log, log_ids, count_split)) for data, count_split in zip(split_data, np.arange(1, len(split_data) + 1))]
@@ -487,7 +487,7 @@ try:
                 id_check.to_csv("{}/OutputFiles/{}/logic_logs/id_check_{}m{}.csv".format(get_home(), sector, curryr, currmon), index=False)           
                 size_method = test_data.copy()
                 size_method = size_method[['property_source_id', 'id_use', 'size_method', 'tot_size']]
-
+                
                 if not stop:
 
                     # Format realid and phase correctly
@@ -502,7 +502,7 @@ try:
                     # Drop properties/listings that do not meet REIS sector specific inclusion criteria
                     pre_drop = test_data[test_data['leg']][['property_source_id', 'id_use']].copy()
                     test_data = prepLogs.select_comp(test_data)
-                    
+
                     # See if there are cases where a property might have a duplicate avail but one for direct and one for sublet
                     test_data = prepLogs.check_double_sublet(test_data)
 
