@@ -1277,7 +1277,7 @@ class PrepareLogs:
 
         return test_data
     
-    def select_comp(self, test_data):
+    def select_comp(self, test_data, log):
         
         temp = test_data.copy()
         temp = temp[(temp['building_status'] != 'existing') & ((temp['building_status'] != '') | (temp['leg'] == False))]
@@ -1312,10 +1312,16 @@ class PrepareLogs:
             
             if self.sector == "off":
                 size_by_use = 'building_office_size_sf'
+                met = 'property_geo_reis_raw_office_msa_code'
+                sub = 'property_geo_reis_raw_office_subid'
             elif self.sector == "ind":
                 size_by_use = "building_industrial_size_sf"
+                met = 'property_geo_reis_raw_distribution_msa_code'
+                sub = 'property_geo_reis_raw_distribution_subid'
             elif self.sector == "ret":
                 size_by_use = "building_retail_size_sf"
+                met = 'property_geo_reis_raw_retail_msa_code'
+                sub = 'property_geo_reis_raw_retail_subid'
             
             test_data['mixed_check'] = False
             test_data['mixed_check'] = np.where((test_data[size_by_use] > 0), True, test_data['mixed_check'])
@@ -1323,10 +1329,19 @@ class PrepareLogs:
                 test_data['mixed_check'] = np.where((test_data['category'].isin(self.sector_map[self.sector]['category'])) & (test_data['building_retail_size_sf'] > 100) & ((test_data['tot_size'] - test_data['building_retail_size_sf']) / test_data['tot_size'] > 0.25), True, test_data['mixed_check'])
             test_data['mixed_check'] = np.where((test_data['subcategory'] != 'mixed_use'), False, test_data['mixed_check'])
             
+            test_data['property_geo_msa_code'] = np.where((test_data['mixed_check']) & (test_data['leg'] == False), met, test_data['property_geo_msa_code'])
+            test_data['property_geo_subid'] = np.where((test_data['mixed_check']) & (test_data['leg'] == False), sub, test_data['property_geo_subid'])
+            
             test_data['tot_size'] = np.where((test_data['mixed_check']) & (test_data[size_by_use] > 0), test_data[size_by_use], test_data['tot_size'])
             if self.sector in ['off', 'ind']:
                 test_data['tot_size'] = np.where((test_data['mixed_check']) & (test_data[size_by_use].isnull() == True), test_data['tot_size'] - test_data['building_retail_size_sf'], test_data['tot_size'])
             
+            temp = log.copy()
+            temp = temp[(temp['metcode'].isnull() == False) & (temp['metcode'] != '') & (temp['subid'].isnull() == False)]
+            temp['met_sub'] = temp['metcode'] + '/' + log['subid'].astype(str).str.split('.').str[0]
+            valid_combos = list(temp.drop_duplicates('met_sub')['met_sub'])
+            test_data['met_sub'] = test_data['property_geo_msa_code']  + '/' + test_data['property_geo_subid'].astype(str).str.split('.').str[0]                
+                
             test_data['reason'] = 'Keep'
             test_data['reason'] = np.where((~test_data['category'].isin(self.sector_map[self.sector]['category'])) | (~test_data['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + [''])) & (test_data['mixed_check'] == False) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cat/subcat not publishable REIS type', test_data['reason'])
             test_data['reason'] = np.where((test_data['subcategory'] == 'mixed_use') & (test_data['mixed_check'] == False) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is mixed use and no size by use data entered', test_data['reason'])
@@ -1337,6 +1352,7 @@ class PrepareLogs:
             test_data['reason'] = np.where(((test_data['retail_center_type'] != '') | (test_data['subcategory'] == '')) & (self.sector == 'ret') & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cannot determine N or C subcat', test_data['reason'])
             test_data['reason'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, size less than 10k sqft', test_data['reason'])
             test_data['reason'] = np.where(((test_data['property_geo_msa_code'] == '') | (test_data['property_geo_subid'].isnull() == True)) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, no geo msa or subid', test_data['reason'])
+            test_data['reason'] = np.where((~test_data['met_sub'].isin(valid_combos)) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'met/subid combo does not exist for this sector', test_data['reason'])
             test_data['reason'] = np.where(((test_data['first_year'] > self.curryr) | ((test_data['first_year'] == self.curryr) & (test_data['buildings_construction_expected_completion_month'] > self.currmon))) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, completion date in future', test_data['reason'])
             test_data['reason'] = np.where((test_data['first_year'] >= self.curryr - 3) & (test_data['buildings_construction_expected_completion_month'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, in NC rebench window and missing month built', test_data['reason'])
             test_data['reason'] = np.where((test_data['first_year'] >= self.curryr - 3) & (test_data['tot_size'].isnull() == True) & (test_data[size_by_use].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, in NC rebench window and missing total size', test_data['reason'])
