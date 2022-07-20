@@ -1360,6 +1360,17 @@ class PrepareLogs:
             test_data['metcode'] = np.where((test_data['leg'] == False), test_data['property_geo_msa_code'], test_data['metcode'])
             test_data['gsub'] = np.where((test_data['leg'] == False), test_data['property_geo_subid'], test_data['gsub'])
             
+            if self.sector == 'ret':
+                test_data['test1'] = (test_data['tot_size'] >= 9300) & (test_data['occupancy_type'] == 'single_tenant') 
+                test_data['test2'] = (test_data['tot_size'] >= 18600)
+                test_data['test3'] = (test_data['rownum_buspark_retail_size_desc'] == 1) & (test_data['tot_size'] >= 9300)
+                test_data['test4'] = (test_data['orig_tot_size'].isnull() == True) & (test_data['tot_size'].isnull() == False)
+                test_data['retail_property_is_anchor_flag'] = np.where(((test_data['test1']) | (test_data['test2']) | (test_data['test3'])) & (test_data['test4']), 'Y', test_data['retail_property_is_anchor_flag'])
+                test_data['retail_property_is_anchor_flag'] = np.where((test_data['test1'] == False) & (test_data['test2'] == False) & (test_data['test3'] == False) & (test_data['test4']), 'N', test_data['retail_property_is_anchor_flag'])
+                test_data['a_size'] = np.where(((test_data['test1']) | (test_data['test2']) | (test_data['test3'])) & (test_data['test4']), test_data['tot_size'], test_data['a_size'])
+                test_data['n_size'] = np.where((test_data['test1'] == False) & (test_data['test2'] == False) & (test_data['test3'] == False) & (test_data['test4']), test_data['tot_size'], test_data['n_size'])
+
+
         # Drop properties that have no spaces that are for publishable reis types for the sector
         # Also infer that space is leased in cases where a property is assigned a reis id, has no publishable space types in the listings data, but is not fully avail
         cols = test_data.columns
