@@ -429,6 +429,7 @@ class PrepareLogs:
         
         test_data['businesspark'] = np.where((test_data['businesspark'].isnull() == True), '', test_data['businesspark'])
         test_data['businesspark'] = test_data['businesspark'].str.strip()
+        test_data['zip'] = np.where((test_data['zip'].str.contains('-') == True), test_data['zip'].str.split('-').str[0], test_data['zip'])
         test_data['zip'] = np.where((test_data['zip'].str.isdigit() == False), np.nan, test_data['zip'])
         test_data['zip'] = test_data['zip'].astype(float)
         test_data['zip_temp'] = np.where((test_data['zip'].isnull() == True), 999999999, test_data['zip'])
