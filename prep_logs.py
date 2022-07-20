@@ -1319,7 +1319,7 @@ class PrepareLogs:
             test_data['mixed_check'] = False
             test_data['mixed_check'] = np.where((test_data[size_by_use] > 0), True, test_data['mixed_check'])
             if self.sector in ['off', 'ind']:
-                test_data['mixed_check'] = np.where((test_data['building_retail_size_sf'] > 100) & ((test_data['tot_size'] - test_data['building_retail_size_sf']) / test_data['tot_size'] > 0.25), True, test_data['mixed_check'])
+                test_data['mixed_check'] = np.where((test_data['category'].isin(self.sector_map[self.sector]['category'])) & (test_data['building_retail_size_sf'] > 100) & ((test_data['tot_size'] - test_data['building_retail_size_sf']) / test_data['tot_size'] > 0.25), True, test_data['mixed_check'])
             test_data['mixed_check'] = np.where((test_data['subcategory'] != 'mixed_use'), False, test_data['mixed_check'])
             
             test_data['tot_size'] = np.where((test_data['mixed_check']) & (test_data[size_by_use] >0), test_data[size_by_use], test_data['tot_size'])
@@ -3018,8 +3018,7 @@ class PrepareLogs:
             
         nc_add['mixed_use_check'] = np.where((nc_add['subcategory'] == 'mixed_use') & (nc_add[size_by_use] > 0), True, False)
         if self.sector in ['off', 'ind']:
-            nc_add['mixed_use_check'] = np.where((nc_add['building_retail_use_size_sf'] > 100) & ((nc_add['buildings_size_gross_sf'] - nc_add['building_retail_use_size_sf']) / nc_add['buildings_size_gross_sf'] > 0.25), True, nc_add['mixed_use_check'])
-            
+            nc_add['mixed_use_check'] = np.where((nc_add['subcategory'] == 'mixed_use') & (nc_add['category'].isin(self.sector_map[self.sector]['category'])) & (nc_add['building_retail_use_size_sf'] > 100) & ((nc_add['buildings_size_gross_sf'] - nc_add['building_retail_use_size_sf']) / nc_add['buildings_size_gross_sf'] > 0.25), True, nc_add['mixed_use_check'])
         
         nc_add = nc_add[((nc_add['category'].isin(self.sector_map[self.sector]['category'])) & (nc_add['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['']))) | (nc_add['mixed_use_check'])]
         
