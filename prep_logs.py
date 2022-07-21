@@ -3036,7 +3036,7 @@ class PrepareLogs:
         temp = temp[(temp['const_year'] != temp['buildings_construction_year_built']) & (temp['const_year'] != temp['buildings_construction_year_renovated']) & (temp['buildings_construction_year_built'].isnull() == False)]
         if len(temp) > 0:
             temp['reason'] = 'construction completion date not in line with either year built or renovation year'
-            temp['value'] = temp['const_year'].astype(str) + ',' + temp['buildings_construction_year_built'].astype(str) + ',' + temp['buildings_construction_year_renovated'].astype(str)
+            temp['value'] = temp['const_year'].astype(str) + ',' + temp['buildings_construction_year_built'].astype(str).str.split('.').str[0] + ',' + temp['buildings_construction_year_renovated'].astype(str)
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value']])
         nc_add = nc_add[(nc_add['const_year'] == nc_add['buildings_construction_year_built']) | (nc_add['buildings_construction_year_built'].isnull() ==True) | (nc_add['const_year'] == nc_add['buildings_construction_year_renovated'])]
         
