@@ -1404,6 +1404,8 @@ class PrepareLogs:
                 test_data['type2'] = np.where((test_data['type1'] == ''), 'N', test_data['type2'])
                 test_data['type1'] = np.where((test_data['type1'] == ''), 'N', test_data['type1'])
         
+        test_data['renov_year'] = np.where((test_data['renov_year'] >= test_data['first_year']) & (test_data['first_year'].isnull() == False) & (test_data['leg'] == False), np.nan, test_data['renov_year'])
+        
         # Drop properties that have no spaces that are for publishable reis types for the sector
         # Also infer that space is leased in cases where a property is assigned a reis id, has no publishable space types in the listings data, but is not fully avail
         cols = test_data.columns
@@ -2956,11 +2958,6 @@ class PrepareLogs:
                     inc['renov'] = np.where((inc['renov'].isnull() == True) & (inc['renov_log'].isnull() == False), inc['renov_log'], inc['renov'])
                     inc = inc.drop(['renov_log'], axis=1)
                     log_aligned.drop(['renov_log'], axis=1)
-
-        log_aligned['in_log'] = 1
-        inc = inc.join(log_aligned.drop_duplicates('realid').set_index('realid')[['in_log']], on='realid')
-        inc['renov'] = np.where((inc['in_log'].isnull() == True) & (inc['renov'] >= inc['year']) & (inc['year'].isnull() == False), np.nan, inc['renov'])
-        inc = inc.drop(['in_log'], axis=1)
                     
         return inc, log_aligned
     
