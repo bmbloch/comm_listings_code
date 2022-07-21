@@ -1388,6 +1388,7 @@ class PrepareLogs:
                 test_data['n_size'] = np.where((test_data['test1'] == False) & (test_data['test2'] == False) & (test_data['test3'] == False) & (test_data['test4']), test_data['tot_size'], test_data['n_size'])
 
             if self.sector == 'ret':
+                test_data['type2'] = np.where((test_data['type1'] == ''), 'N', test_data['type2'])
                 test_data['type1'] = np.where((test_data['type1'] == ''), 'N', test_data['type1'])
         
         # Drop properties that have no spaces that are for publishable reis types for the sector
