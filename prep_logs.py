@@ -1329,8 +1329,8 @@ class PrepareLogs:
                 test_data['mixed_check'] = np.where((test_data['category'].isin(self.sector_map[self.sector]['category'])) & (test_data['building_retail_size_sf'] > 100) & ((test_data['tot_size'] - test_data['building_retail_size_sf']) / test_data['tot_size'] > 0.25), True, test_data['mixed_check'])
             test_data['mixed_check'] = np.where((test_data['subcategory'] != 'mixed_use'), False, test_data['mixed_check'])
             
-            test_data['property_geo_msa_code'] = np.where((test_data['mixed_check']) & (test_data['leg'] == False), met, test_data['property_geo_msa_code'])
-            test_data['property_geo_subid'] = np.where((test_data['mixed_check']) & (test_data['leg'] == False), sub, test_data['property_geo_subid'])
+            test_data['property_geo_msa_code'] = np.where((test_data['mixed_check']) & (test_data['leg'] == False), test_data[met], test_data['property_geo_msa_code'])
+            test_data['property_geo_subid'] = np.where((test_data['mixed_check']) & (test_data['leg'] == False), test_data[sub], test_data['property_geo_subid'])
             
             test_data['tot_size'] = np.where((test_data['mixed_check']) & (test_data[size_by_use] > 0), test_data[size_by_use], test_data['tot_size'])
             if self.sector in ['off', 'ind']:
