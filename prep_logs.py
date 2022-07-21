@@ -348,6 +348,16 @@ class PrepareLogs:
             log['tot_size'] = np.where((log['tot_size_use'].isnull() == False), log['tot_size_use'], log['tot_size'])
             log['tot_size'] = np.where((log['max_size'].isnull() == False) & (log['tot_size_use'].isnull() == True), log['max_size'], log['tot_size'])
             log = log.drop(['max_size', 'tot_n_size', 'tot_a_size', 'tot_size_use'], axis=1)
+        
+        if self.sector == 'ind':
+            temp = log.copy()
+            temp['survdate_d'] = pd.to_datetime(temp['survdate'])
+            temp.sort_values(by=['realid', 'survdate_d'], ascending=[True, False], inplace=True)
+            temp = temp[(temp['type2'] != '') & (temp['type2'].isnull() == False)]
+            temp = temp.drop_duplicates('realid')
+            log = log.join(temp.set_index('realid').rename(columns={'type2': 'mr_type2'})[['mr_type2']], on='realid')
+            log['type2'] = np.where((log['mr_type2'].isnull() == False), log['mr_type2'], log['type2'])
+            log = log.drop(['mr_type2'], axis=1)
                              
         log['state'] = np.where((log['state'] == '--'), '', log['state'])
 
