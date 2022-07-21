@@ -2956,6 +2956,11 @@ class PrepareLogs:
                     inc['renov'] = np.where((inc['renov'].isnull() == True) & (inc['renov_log'].isnull() == False), inc['renov_log'], inc['renov'])
                     inc = inc.drop(['renov_log'], axis=1)
                     log_aligned.drop(['renov_log'], axis=1)
+
+        log_aligned['in_log'] = 1
+        inc = inc.join(log_aligned.drop_duplicates('realid').set_index('realid')[['in_log']], on='realid')
+        inc['renov'] = np.where((inc['in_log'].isnull() == True) & (inc['renov'] >= inc['year']) & (inc['year'].isnull() == False), np.nan, inc['renov'])
+        inc = inc.drop(['in_log'], axis=1)
                     
         return inc, log_aligned
     
