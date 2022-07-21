@@ -1803,7 +1803,7 @@ class PrepareLogs:
         p_snap['property_source_id'] = p_snap['property_source_id'].astype(str)
         data = data.join(p_snap.rename(columns={'realid': 'id_use', 'property_source_id': 'p_property_source_id'}).drop_duplicates('id_use').set_index('id_use')[['p_property_source_id']], on='id_use')
         temp = data.copy()
-        temp = temp[(temp['property_source_id'] != temp['p_property_source_id']) & (temp['p_property_source_id'].isnull() == False)]
+        temp = temp[(temp['property_source_id'] != temp['p_property_source_id']) & (temp['p_property_source_id'].isnull() == False) & (temp['p_property_source_id'] != '')]
         if len(temp):
             temp = temp.drop_duplicates('property_source_id')
             logging.info("There are {:,} properties that are now linked to new property source ids".format(len(temp)))
