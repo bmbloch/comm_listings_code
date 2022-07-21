@@ -1370,8 +1370,10 @@ class PrepareLogs:
             if self.sector == 'ind':
                 test_data['off_perc'] = np.where((test_data['building_office_size_sf'].isnull() == False), test_data['building_office_size_sf'] / test_data['tot_size'], np.nan)
                 test_data['off_perc'] = np.where((test_data['building_industrial_size_sf'].isnull() == False) & (test_data['building_industrial_size_sf'] <= test_data['tot_size']), (test_data['tot_size'] - test_data['building_industrial_size_sf']) / test_data['tot_size'], test_data['off_perc'])
-                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] >= 0.25), 'F', test_data['type2'])
-                test_data['type2'] = np.where((test_data['leg'] == False) & ((test_data['off_perc'] < 0.25) | (test_data['off_perc'].isnull() == True)), 'W', test_data['type2'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] >= 0.25) & (test_data['off_perc'].isnull() == False), 'F', test_data['type2'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['off_perc'] < 0.25) & (test_data['off_perc'].isnull() == False), 'W', test_data['type2'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['off_perc'].isnull() == True) & (test_data['subcategory'] == 'warehouse_flex'), 'F', test_data['type2'])
+                test_data['type2'] = np.where((test_data['leg'] == False) & (test_data['off_perc'].isnull() == True) & (test_data['subcategory'] != 'warehouse_flex'), 'W', test_data['type2'])
             
             test_data['tot_size'] = np.where((test_data['leg'] == False) & (test_data['mixed_check'] == False) & ((test_data['type2'] != 'F') | (self.sector !='ind')) & ((test_data[size_by_use] > 10000) | (self.sector == 'ret')) & ((test_data[size_by_use] <= test_data['tot_size']) | (test_data['tot_size'].isnull() == True)), test_data[size_by_use], test_data['tot_size'])
             test_data['metcode'] = np.where((test_data['leg'] == False), test_data['property_geo_msa_code'], test_data['metcode'])
