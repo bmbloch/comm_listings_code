@@ -417,7 +417,8 @@ class PrepareLogs:
                           'retail_property_is_anchor_flag', 'property_source_id', 'property_reis_rc_id',
                           'foundation_ids_list', 'catylist_sector', 'property_geo_msa_list', 
                           'property_geo_subid_list', 'street_address', 'commission_description', 'lease_terms', 
-                          'space_floor', 'space_suite', 'listed_space_title', 'state', 'property_geo_msa_code','retail_center_type']
+                          'space_floor', 'space_suite', 'listed_space_title', 'state', 'property_geo_msa_code',
+                          'retail_center_type', 'type1']
         
         for col in null_to_string:
             test_data[col] = np.where((test_data[col].isnull() == True), '', test_data[col])
@@ -1386,6 +1387,9 @@ class PrepareLogs:
                 test_data['a_size'] = np.where(((test_data['test1']) | (test_data['test2']) | (test_data['test3'])) & (test_data['test4']), test_data['tot_size'], test_data['a_size'])
                 test_data['n_size'] = np.where((test_data['test1'] == False) & (test_data['test2'] == False) & (test_data['test3'] == False) & (test_data['test4']), test_data['tot_size'], test_data['n_size'])
 
+            if self.sector == 'ret':
+                test_data['type1'] = np.where((test_data['type1'] == ''), 'N', test_data['type1'])
+        
         # Drop properties that have no spaces that are for publishable reis types for the sector
         # Also infer that space is leased in cases where a property is assigned a reis id, has no publishable space types in the listings data, but is not fully avail
         cols = test_data.columns
@@ -3259,7 +3263,7 @@ class PrepareLogs:
                 nc_add['ceil_avg'] = np.where((nc_add['buildings_physical_characteristics_clear_height_min_ft'].isnull() == True) & (nc_add['buildings_physical_characteristics_clear_height_max_ft'].isnull() == False), nc_add['buildings_physical_characteristics_clear_height_max_ft'], nc_add['ceil_avg'])
                 nc_add['selected'] = ''
             elif self.sector == "ret":
-                nc_add['type1'] = np.where((nc_add['subcategory'].isin(['neighborhood_grocery_anchor', 'neighborhood_center', 'big_box', 'retail'])), 'N', 'C')
+                nc_add['type1'] = np.where((nc_add['subcategory'].isin(['neighborhood_grocery_anchor', 'neighborhood_center', 'retail', 'mixed_use'])), 'N', 'C')
                 nc_add['type2'] = nc_add['type1']
                 nc_add['surv_yr'] = self.curryr
                 nc_add['surv_qtr'] = np.ceil(self.currmon / 3)
