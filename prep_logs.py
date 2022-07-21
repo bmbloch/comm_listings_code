@@ -1253,7 +1253,8 @@ class PrepareLogs:
                 test_data['type2'] = ''
                 # Note: Looks like Catylist sector is Flx for any cases where subcategory is warehouse flex or warehouse office, regardless of what percentage of the space is office. So moving away from using that as core determinant and will rely on the log
                 test_data['type2'] = np.where((test_data['type2_log'].isnull() == False), test_data['type2_log'], test_data['type2'])
-                test_data['type2'] = np.where((test_data['type2'] == '') & (test_data['catylist_sector'] == 'Flx'), 'F', test_data['type2'])
+                test_data['type2'] = np.where((test_data['type2'] == '') & (test_data['leg']) & (test_data['subcategory'] == 'warehouse_flex'), 'F', test_data['type2'])
+                test_data['type2'] = np.where((test_data['type2'] == '') & (test_data['leg']) & (test_data['subcategory'] != 'warehouse_flex'), 'W', test_data['type2'])
             test_data = test_data.drop(['type2_log'], axis=1)
         
         elif self.sector == "ret":
