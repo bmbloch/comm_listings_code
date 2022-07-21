@@ -2249,8 +2249,8 @@ class PrepareLogs:
             test_data['ind_hirent'] = np.nan
         elif self.sector == "ret":
             test_data['exp_year'] = np.nan
-            test_data['sales'] = -1
-            test_data['foodct'] = '-1'
+            test_data['sales'] = np.nan
+            test_data['foodct'] = np.nan
             test_data['a_lorent'] = np.nan
             test_data['a_hirent'] = np.nan
             test_data['n_lorent'] = np.nan
