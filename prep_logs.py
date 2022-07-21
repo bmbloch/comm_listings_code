@@ -3253,7 +3253,11 @@ class PrepareLogs:
                 nc_add['s_nsize'] = nc_add['size']
                 nc_add['rnt_term'] = ''
             elif self.sector == "ind":
-                nc_add['type2'] = np.where((nc_add['subcategory'] == 'warehouse_distribution'), 'W', 'F')
+                nc_add['type2'] = ''
+                nc_add['type2'] = np.where((nc_add['off_perc'] >= 0.25) & (nc_add['off_perc'].isnull() == False), 'F', nc_add['type2'])
+                nc_add['type2'] = np.where((nc_add['off_perc'] < 0.25) & (nc_add['off_perc'].isnull() == False), 'W', nc_add['type2'])
+                nc_add['type2'] = np.where((nc_add['off_perc'].isnull() == True) & (nc_add['subcategory'] == 'warehouse_flex'), 'F', nc_add['type2'])
+                nc_add['type2'] = np.where((nc_add['off_perc'].isnull() == True) & (nc_add['subcategory'] != 'warehouse_flex'), 'W', nc_add['type2'])
                 nc_add['realyr'] = self.curryr
                 nc_add['qtr'] = np.ceil(self.currmon / 3)
                 nc_add['status'] = 'C'
