@@ -1349,7 +1349,7 @@ class PrepareLogs:
             test_data['reason'] = np.where((test_data['subcategory'] == 'warehouse_office') & (self.sector == 'ind') & (test_data['building_industrial_size_sf'].isnull() == True) & (test_data['building_office_size_sf'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, subcat is warehouse_office and no size by use data entered', test_data['reason'])
             if 'buildings_condominiumized_flag' not in test_data.columns:
                 test_data['buildings_condominiumized_flag'] = 'N'
-            test_data['reason'] = np.where((test_data['buildings_condominiumized_flag'] == 'Y') & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, non comp condo', test_data['reason'])
+            test_data['reason'] = np.where((test_data['subcategory'] != 'mixed_use') & (test_data['buildings_condominiumized_flag'] == 'Y') & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, non comp condo', test_data['reason'])
             test_data['reason'] = np.where(((test_data['retail_center_type'] != '') | (test_data['subcategory'] == '')) & (self.sector == 'ret') & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cannot determine N or C subcat', test_data['reason'])
             test_data['reason'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, size less than 10k sqft', test_data['reason'])
             test_data['reason'] = np.where(((test_data['property_geo_msa_code'] == '') | (test_data['property_geo_subid'].isnull() == True)) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, no geo msa or subid', test_data['reason'])
@@ -3106,11 +3106,11 @@ class PrepareLogs:
         
         nc_add['buildings_condominiumized_flag'] = np.where((nc_add['buildings_condominiumized_flag'] == 'Y'), 1, 0)
         temp = nc_add.copy()
-        temp = temp[temp['buildings_condominiumized_flag'] == 1]
+        temp = temp[(temp['buildings_condominiumized_flag'] == 1) & (temp['subcategory'] != 'mixed_use')]
         if len(temp) > 0:
             temp['reason'] = 'building is condominiumized'
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason']])
-        nc_add = nc_add[(nc_add['buildings_condominiumized_flag'] == 0)]
+        nc_add = nc_add[(nc_add['buildings_condominiumized_flag'] == 0) | (nc_add['subcategory'] == 'mixed_use')]
 
         nc_add['size'] = nc_add['buildings_size_gross_sf']
         
