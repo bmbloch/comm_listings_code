@@ -131,6 +131,10 @@ nan_to_string = ['property_source_id', 'property_reis_rc_id', 'property_reis_pro
                  'student_housing_type', 'reis_type_secondary']
 for x in nan_to_string:
     df[x] = np.where((df[x].isnull() == True), '', df[x])
+
+to_lower = ['status', 'category', 'subcategory', 'housing_type', 'student_housing_type', 'reis_type_secondary']
+for x in to_lower:
+    df[x] = df[x].str.lower()
     
 conv_float = ['ren0', 'ren1', 'ren2', 'ren3', 'ren4', 'size0', 'size1', 'size2', 'size3', 'size4', 'vac0', 'vac1', 'vac2',
               'vac3', 'vac4', 'free_rent']
@@ -199,11 +203,11 @@ df = df[(df['year'] < curryr) | (df['year'].isnull() == True) | ((df['year'] == 
 
 print("Put this in once we are confident that data is clean")
 # temp = df.copy()
-# temp = temp[temp['category'] != 'MULTIFAMILY']
+# temp = temp[temp['category'] != 'multifamily']
 # temp['reason'] = 'property no longer multifamily'
 # drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 # del temp
-# df = df[df['category'] == 'MULTIFAMILY']
+# df = df[df['category'] == 'multifamily']
 
 if len(df[df['survdate'].isnull() == True]) > 0:
     print("There are rows that are missing a survey date")
