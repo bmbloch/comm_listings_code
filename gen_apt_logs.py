@@ -463,7 +463,7 @@ if len(test[(test['in_view'].isnull() == True) & (test['realyr'].isnull() == Fal
     display(test[(test['in_view'].isnull() == True) & (test['realyr'].isnull() == False) & (test['reason'] == '')].drop_duplicates('property_reis_rc_id')[['property_reis_rc_id', 'reason']])
 
 temp = temp.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
-if len(temp[(temp['in_log'].isnull() == True) & (df['year'] < curryr - 1)]) > 0:
+if len(temp[(temp['in_log'].isnull() == True) & (temp['year'] < curryr - 1)]) > 0:
     display(temp[(temp['in_log'].isnull() == True)].drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id', 'housing_type', 'type2', 'year']])
 del test
 del temp
