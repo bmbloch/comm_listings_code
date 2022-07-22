@@ -3873,6 +3873,7 @@ class PrepareLogs:
             aggreg_logic = pd.DataFrame()
             aggreg_snaps = pd.DataFrame()
             aggreg_mult_link = pd.DataFrame()
+            aggreg_nc_drop = pd.DataFrame()
             
             for sector in sectors:
             
@@ -3895,6 +3896,10 @@ class PrepareLogs:
                 temp['r_sector'] = sector
                 aggreg_mult_link = aggreg_mult_link.append(temp, ignore_index=True)
                 
+                path = '{}/drop_nc_log_{}m{}.csv'.format(file_read, self.curryr, self.currmon)
+                temp = pd.read_csv(path, sep=',', encoding = 'utf-8',  na_values= "", keep_default_na = False)
+                aggreg_nc_drop = aggreg_nc_drop.append(temp, ignore_index=True)
+                
                 root_snap = "{}/OutputFiles/{}/snapshots".format(self.home, sector)
                 file_read = '{}{}'.format(self.prefix, root_snap)
                 path = '{}/{}m{}_snapshot_{}.csv'.format(file_read, self.curryr, self.currmon, sector)
@@ -3908,10 +3913,15 @@ class PrepareLogs:
                 elif sector == "ret":
                     temp['has_vac'] = np.where((temp['n_avail'].isnull() == False) | (temp['a_avail'].isnull() == False), 1, 0)
                     temp['has_rent'] = np.where((temp['n_avrent'].isnull() == False) | (temp['a_avrent'].isnull() == False), 1, 0)
-                temp = temp[['property_source_id', 'realid', 'has_vac', 'has_rent']]
+                temp = temp[['property_source_id', 'realid', 'has_vac', 'has_rent', 'leg', 'source']]
                 temp['r_sector'] = sector
                 aggreg_snaps = aggreg_snaps.append(temp, ignore_index=True)
 
+            aggreg_nc_drop['count'] = aggreg_nc_drop.groupby('property_source_id')['property_source_id'].transform('count')
+            aggreg_nc_drop = aggreg_nc_drop[aggreg_nc_drop['count'] == len(sectors)]
+            aggreg_nc_drop = aggreg_nc_drop.drop_duplicates(['property_source_id', 'reason'])
+            aggreg_nc_drop = aggreg_nc_drop.drop(['count'], axis=1)
+            
             aggreg_drop['reason'] = np.where((aggreg_drop['reason'] == 'property not linked to REIS id in this sector') | (aggreg_drop['reason'] == 'property linked to REIS id that is not live'), 'property linked to REIS id that is not squarable', aggreg_drop['reason'])
             aggreg_drop.sort_values(by=['c_id', 'reason'], ascending=[False, False], inplace=True)
             aggreg_drop['count'] = aggreg_drop.groupby(['c_id', 'reason'])['c_id'].transform('count')
@@ -3925,6 +3935,12 @@ class PrepareLogs:
             aggreg_drop['count'] = aggreg_drop.groupby('c_id')['c_id'].transform('count')
             aggreg_drop['drop_this'] = np.where((aggreg_drop['count'] > 1) & (aggreg_drop['has_core'] == 0) & (aggreg_drop['sum_has_core'] > 0), 1, 0)
             aggreg_drop = aggreg_drop[aggreg_drop['drop_this'] == 0]
+            
+            aggreg_drop['has_netnew'] = np.where((aggreg_drop['reason'].str.contains('Net New Catylist') == True), 1, 0)
+            aggreg_drop['sum_has_netnew'] = aggreg_drop.groupby('c_id')['has_netnew'].transform('sum')
+            aggreg_drop['drop_this'] = np.where((aggreg_drop['sum_has_netnew'] < len(sectors)) & (aggreg_drop['has_netnew'] == 1), 1, 0)
+            aggreg_drop = aggreg_drop[aggreg_drop['drop_this'] == 0]
+            
             aggreg_drop['match_cat'] = 0
             aggreg_drop['match_cat'] = np.where((aggreg_drop['r_sector'] == 'off') & (aggreg_drop['c_category'] == 'OFFICE'), 1, aggreg_drop['match_cat'])
             aggreg_drop['match_cat'] = np.where((aggreg_drop['r_sector'] == 'ind') & (aggreg_drop['c_category'] == 'INDUSTRIAL'), 1, aggreg_drop['match_cat'])
@@ -3944,6 +3960,7 @@ class PrepareLogs:
             aggreg_logic.to_csv('{}/OutputFiles/aggreg_logs/all_logic_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
             aggreg_snaps.to_csv('{}/OutputFiles/aggreg_logs/all_snaps_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
             aggreg_mult_link.to_csv('{}/OutputFiles/aggreg_logs/all_mult_link_{}m{}.csv'.format(self.home, self.curryr, self.currmon), index=False)
+            aggreg_nc_drop.to_csv('{}/OutputFiles/aggreg_logs/all_nc_drops_{}m{}.csv'.format(get_home(), self.curryr, self.currmon), index=False)
             
             aggreg_snaps['in'] = 1
             aggreg_mult_link['in_mult'] = 1
