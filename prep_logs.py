@@ -3898,6 +3898,7 @@ class PrepareLogs:
                 
                 path = '{}/drop_nc_log_{}m{}.csv'.format(file_read, self.curryr, self.currmon)
                 temp = pd.read_csv(path, sep=',', encoding = 'utf-8',  na_values= "", keep_default_na = False)
+                temp['r_sector'] = sector
                 aggreg_nc_drop = aggreg_nc_drop.append(temp, ignore_index=True)
                 
                 root_snap = "{}/OutputFiles/{}/snapshots".format(self.home, sector)
@@ -3919,7 +3920,6 @@ class PrepareLogs:
 
             aggreg_nc_drop['count'] = aggreg_nc_drop.groupby('property_source_id')['property_source_id'].transform('count')
             aggreg_nc_drop = aggreg_nc_drop[aggreg_nc_drop['count'] == len(sectors)]
-            aggreg_nc_drop = aggreg_nc_drop.drop_duplicates(['property_source_id', 'reason'])
             aggreg_nc_drop = aggreg_nc_drop.drop(['count'], axis=1)
             
             aggreg_drop['reason'] = np.where((aggreg_drop['reason'] == 'property not linked to REIS id in this sector') | (aggreg_drop['reason'] == 'property linked to REIS id that is not live'), 'property linked to REIS id that is not squarable', aggreg_drop['reason'])
