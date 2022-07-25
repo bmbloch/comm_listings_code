@@ -325,6 +325,7 @@ temp['reason'] = 'Property potential new construction, but ER link indicates pro
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 
 df = df[~df['property_source_id'].isin(drop_list)]
+print('Property count after removing potential nc properties that likely already exist in the log: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
 temp = temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) & (temp['in_log'].isnull() == True) & (temp['totunits'].isnull() == True)]
