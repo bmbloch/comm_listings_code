@@ -210,6 +210,8 @@ print("Put this in once we are confident that data is clean")
 # drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 # del temp
 # df = df[(df['category'] == 'multifamily') | ((df['subcategory'] =='mixed_use') & (df['totunits'] > 0))]
+# print('Property count after removing non multifamily properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
+
 
 if len(df[df['survdate'].isnull() == True]) > 0:
     print("There are rows that are missing a survey date")
