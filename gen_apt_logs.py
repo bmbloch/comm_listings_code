@@ -118,6 +118,7 @@ drop_log = pd.DataFrame()
 
 df['property_reis_rc_id'] = df['property_reis_rc_id_an']
 df['property_reis_rc_id'] = np.where((df['property_reis_rc_id'].str[0] == 'L'), 'A'+ df['property_reis_rc_id'].str[1:], df['property_reis_rc_id'])
+df['property_reis_rc_id'] = np.where((df['property_reis_rc_id'].str[-1] == '-'), df['property_reis_rc_id'].str[:-1], df['property_reis_rc_id'])
 
 df['property_source_id'] = np.where((df['property_source_id'].isnull() == True), df['property_reis_rc_id'], df['property_source_id'])
 
