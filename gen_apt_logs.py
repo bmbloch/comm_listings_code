@@ -201,6 +201,7 @@ temp['reason'] = 'Property has year built in the future'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
 df = df[(df['year'] < curryr) | (df['year'].isnull() == True) | ((df['year'] == curryr) & ((df['month'] <= currmon) | (df['month'].isnull() == True)))]
+print('Property count after removing props with future year builts: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 print("Put this in once we are confident that data is clean")
 # temp = df.copy()
