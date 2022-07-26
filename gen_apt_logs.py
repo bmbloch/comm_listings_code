@@ -197,6 +197,16 @@ print('Property count after removing non published aptdata.com surveys: {:,}'.fo
 
 display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
+df['reis_record'] = np.where((df['property_reis_rc_id'] == '') | (df['property_reis_rc_id'].str[0] != 'A'), False, True)
+temp = df.copy()
+temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['year'].isnull() == True) | (temp['month'].isnull() == True))]
+temp['reason'] = 'Property is not linked to a REIS Apartment record'
+drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+del temp
+df = df[(df['reis_record']) | ((df['year'] >= curryr - 1) & (df['month'].isnull() == False))]
+print('Property count after removing properties not linked to REIS ID: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
+
+
 temp = df.copy()
 temp = temp[((temp['year'] > curryr) & (temp['year'].isnull() == False)) | ((temp['year'] == curryr) & (temp['month'] > currmon) & (temp['month'].isnull() == False))]
 temp['reason'] = 'Property has year built in the future'
@@ -279,15 +289,6 @@ drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property
 del temp
 df = df[(df['housing_type'] != 'student')]
 print('Property count after removing student properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
-
-df['reis_record'] = np.where((df['property_reis_rc_id'] == '') | (df['property_reis_rc_id'].str[0] != 'A'), False, True)
-temp = df.copy()
-temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['year'].isnull() == True) | (temp['month'].isnull() == True))]
-temp['reason'] = 'Property is not linked to a REIS Apartment record'
-drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
-del temp
-df = df[(df['reis_record']) | ((df['year'] >= curryr - 1) & (df['month'].isnull() == False))]
-print('Property count after removing properties not linked to REIS ID: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 test = log_in.copy()
 test['in_log'] = 1
