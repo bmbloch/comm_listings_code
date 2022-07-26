@@ -181,7 +181,7 @@ df['count_apt'] = df[df['survey_legacy_data_source'] == 'ApartmentData.com'].gro
 df['count_apt'] = df.groupby('property_source_id')['count_apt'].bfill()
 df['count_apt'] = df.groupby('property_source_id')['count_apt'].ffill()
 df['count_apt'] = df['count_apt'].fillna(0)
-df['valid'] = np.where((df['count_apt'] == 0), 1, df['valid'])
+df['valid'] = np.where((df['count_apt'] == 0) | (df['property_reis_rc_id'].str[0] != 'A'), 1, df['valid'])
 df['valid'] = df['valid'].fillna(0)
 temp = df.copy()
 temp['property_reis_rc_id'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] == 'A'), temp['property_er_to_foundation_ids_list'].str.split(',').str[0], temp['property_reis_rc_id'])
