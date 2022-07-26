@@ -459,7 +459,7 @@ for col in df.columns:
         df[col] = df.groupby('property_source_id')[col].ffill()
         df['count'] = df.groupby('property_source_id')[col].transform('nunique')
         if len(df[df['count'] > 1]) > 0:
-            print("Structural inconsistency")
+            print("Structural inconsistency for {} at {:,} properties".format(col, len(df[df['count'] > 1].drop_duplicates('property_source_id'))))
             display(df[df['count'] > 1].sort_values(by=['property_source_id'], ascending=[True])[['property_source_id', 'property_reis_rc_id', col, 'survey_legacy_data_source', 'mult_link_check']].drop_duplicates(col).head(2))          
 
 df[(df['in_log'].isnull() == True) & (df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '')].drop_duplicates('property_source_id')[['property_source_id', 'property_er_to_foundation_ids_list', 'metcode', 'subid', 'year', 'month', 'totunits', 'mr_units']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/new_nc_{}m{}.csv'.format(curryr, currmon), index=False)
