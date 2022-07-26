@@ -92,10 +92,12 @@ def read_logs():
     return df
 
 df_in = pd.read_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/InputFiles/apt_view_{}m{}.csv'.format(curryr, currmon), na_values="", keep_default_na=False, parse_dates=['completed_date_full'], infer_datetime_format=True)
+print("view file dimensions: {}".format(df_in.shape))
 live_subs = pd.read_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/InputFiles/apt_live_subs.csv', na_values= "", keep_default_na = False)
 valid_aptdata = pd.read_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/InputFiles/aptdata_valid_ids.csv', na_values= "", keep_default_na = False)
 valid_aptdata['id'] = 'A' + valid_aptdata['id'].astype(str)
 log_in = read_logs()
+print("log file dimensions: {}".format(log_in.shape))
 
 is_structural = ['propname', 'metcode', 'subid', 'address', 'city', 'county', 'state', 'zip', 'x', 'y', 'flrs', 'year', 
                  'utilities', 'amenities', 'month', 'status', 'renov', 'type2', 'units0', 'units1', 'units2', 'units3', 
@@ -366,7 +368,7 @@ temp = temp[temp['count_source_link'] == temp['max_source_link']]
 
 df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id').rename(columns={'property_source_id': 'mult_property_source_id'})[['mult_property_source_id']], on='property_reis_rc_id')
 df['property_source_id'] = np.where((df['mult_property_source_id'].isnull() == False), df['mult_property_source_id'], df['property_source_id'])
-
+print('Property count unifying mult prop links: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 test = log_in.copy()
 test['id'] = 'A' + test['id'].astype(str)
