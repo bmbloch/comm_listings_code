@@ -201,11 +201,11 @@ display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id
 
 df['reis_record'] = np.where((df['property_reis_rc_id'] == '') | (df['property_reis_rc_id'].str[0] != 'A'), False, True)
 temp = df.copy()
-temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['year'].isnull() == True) | (temp['month'].isnull() == True) | ((temp['property_reis_rc_id'].str[0] != 'A') & (temp['property_reis_rc_id'].str[0] != '')))]
+temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['year'].isnull() == True) | (temp['month'].isnull() == True) | ((temp['property_reis_rc_id'].str[0] != 'A') & (temp['property_reis_rc_id'].str[0].isnull() == False)))]
 temp['reason'] = 'Property is not linked to a REIS Apartment record'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
-df = df[(df['reis_record']) | ((df['year'] >= curryr - 1) & (df['month'].isnull() == False) & (df['property_reis_rc_id'].str[0].isin(['A', ''])))]
+df = df[(df['reis_record']) | ((df['year'] >= curryr - 1) & (df['month'].isnull() == False) & ((df['property_reis_rc_id'].str[0] == 'A') | (df['property_reis_rc_id'].str[0].isnull() == True)))]
 print('Property count after removing properties not linked to REIS ID: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
