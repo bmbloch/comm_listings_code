@@ -246,27 +246,6 @@ df['cumcount_id'] = df.groupby('property_source_id')['property_source_id'].trans
 df = df[(df['cumcount_id'] == 0) | (df['count_no_ts'] == 1) | (df['survey_legacy_data_source'] == 'Foundation')]
 print('Property count after removing incremental surveys that occurred on the same day: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-temp = umix_in.copy()
-temp = temp[['propertyid', 'spacetype', 'units', 'sqftavg']]
-temp = temp.rename(columns={'units': 'f_units', 'sqftavg': 'f_sqftavg'})
-temp['identity'] = temp['propertyid'] + '/' + temp['spacetype']
-temp['in_umix'] = 1
-df['identity'] = df['property_reis_rc_id'] + '/' + df['spacetype']
-df = df.join(temp.drop_duplicates('identity').set_index('identity')[['f_units', 'f_sqftavg', 'in_umix']], on='identity')
-del temp
-for col in ['units', 'sqftavg']:
-    df[col] = np.where((df['valid'] == 0) & (df['in_umix'] == 1), df['f_' + col], df[col])
-
-temp = df.copy()
-temp['in_umix_sum'] = temp.groupby('property_source_id')['in_umix'].transform('sum')
-temp = temp[(temp['valid'] == 0) & (temp['in_umix_sum'] == 0)]
-temp['reason'] = 'Property is not publishable aptdata.com record, and has no umixes that exist in legacy file'
-drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
-del temp
-df = df[(df['valid'] == 1) | (df['in_umix'] == 1)]
-print("Property count after removing surveys that are not valid aptdata.com properties and have no umix in the legacy file")    
-df = df.drop_duplicates(['f_units', 'f_sqftavg', 'in_umix'])
-
 test = log_in.copy()
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 test['in_log'] = 1
