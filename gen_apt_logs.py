@@ -40,6 +40,7 @@ from datetime import timedelta
 curryr = 2022
 currmon = 7
 use_reis_yr = True # Set this to true if want to override the RDMA year built and month built values with Foundation values
+update_umix = True # Set this to true if want to also update the umixfamily.txt file in addition to the metro log files
 
 print("Initiating process for {}m{}".format(curryr, currmon))
 
