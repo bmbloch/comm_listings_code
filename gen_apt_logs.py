@@ -41,6 +41,8 @@ curryr = 2022
 currmon = 7
 use_reis_yr = True # Set this to true if want to override the RDMA year built and month built values with Foundation values
 
+print("Initiating process for {}m{}".format(curryr, currmon))
+
 logger = logging.getLogger()
 
 log_file_name = 'DL_Log_Apt.log'
