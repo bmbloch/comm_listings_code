@@ -201,7 +201,7 @@ display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id
 
 df['reis_record'] = np.where((df['property_reis_rc_id'] == '') | (df['property_reis_rc_id'].str[0] != 'A'), False, True)
 temp = df.copy()
-temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['year'].isnull() == True) | (temp['month'].isnull() == True) | (temp['property_reis_rc_id'].str[0] != 'A') & (temp['property_reis_rc_id'].str[0] != ''))]
+temp = temp[(temp['reis_record'] == False) & ((temp['year'] < curryr - 1) | (temp['year'].isnull() == True) | (temp['month'].isnull() == True) | ((temp['property_reis_rc_id'].str[0] != 'A') & (temp['property_reis_rc_id'].str[0] != '')))]
 temp['reason'] = 'Property is not linked to a REIS Apartment record'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
