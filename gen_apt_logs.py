@@ -177,20 +177,22 @@ df = df[(df['survey_legacy_data_source'].isin(['Foundation', 'ApartmentData.com'
 print('Property count after removing test surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 df = df.join(valid_aptdata.drop_duplicates('id').set_index('id')[['valid']], on='property_reis_rc_id')
-df['valid'] = df['valid'].fillna(0)
 df['count_apt'] = df[df['survey_legacy_data_source'] == 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
 df['count_apt'] = df.groupby('property_source_id')['count_apt'].bfill()
 df['count_apt'] = df.groupby('property_source_id')['count_apt'].ffill()
+df['count_apt'] = df['count_apt'].fillna(0)
+df['valid'] = np.where((df['count_apt'] == 0), 1, df['valid'])
+df['valid'] = df['valid'].fillna(0)
 temp = df.copy()
 temp['property_reis_rc_id'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] == 'A'), temp['property_er_to_foundation_ids_list'].str.split(',').str[0], temp['property_reis_rc_id'])
 temp['count_links'] = temp.groupby('property_reis_rc_id')['property_source_id'].transform('nunique')
 temp['count_links'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] != 'A'), 0, temp['count_links'])
 temp['count'] = temp.groupby('property_source_id')['property_source_id'].transform('count')
-temp = temp[(temp['survey_legacy_data_source'] == 'ApartmentData.com') & (temp['count'] == temp['count_apt']) & (temp['valid'] == 0) & (temp['property_reis_rc_id'] != '')]
+temp = temp[(temp['survey_legacy_data_source'] == 'ApartmentData.com') & (temp['count'] == temp['count_apt']) & (temp['valid'] == 0) & (temp['property_reis_rc_id'].str[0] == 'A')]
 temp['reason'] = 'Aptdata.com survey deemed not publishable'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason', 'count_links']], ignore_index=True)
 del temp
-df = df[(df['survey_legacy_data_source'] != 'ApartmentData.com') | (df['valid'] == 1) | (df['property_reis_rc_id'] == '')]
+df = df[(df['survey_legacy_data_source'] != 'ApartmentData.com') | (df['valid'] == 1) | (df['property_reis_rc_id'].str[0] != 'A')]
 print('Property count after removing non published aptdata.com surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
