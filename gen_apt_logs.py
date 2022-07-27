@@ -222,13 +222,12 @@ print('Property count after removing props with future year builts: {:,}'.format
 
 print("Put this in once we are confident that data is clean")
 # temp = df.copy()
-# temp = temp[(temp['category'] != 'multifamily') & ((temp['subcategory'] != 'mixed_use') | (temp['totunits'].isnull() == True))]
+# temp = temp[(temp['category'] != 'multifamily') & ((temp['subcategory'] != 'mixed_use') | (temp['totunits'].isnull() == True)) & (temp['property_source_id'] != temp['property_reis_rc_id'])]
 # temp['reason'] = 'property no longer multifamily'
 # drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 # del temp
-# df = df[(df['category'] == 'multifamily') | ((df['subcategory'] =='mixed_use') & (df['totunits'] > 0))]
+# df = df[(df['category'] == 'multifamily') | ((df['subcategory'] =='mixed_use') & (df['totunits'] > 0)) | (df['property_source_id'] == df['property_reis_rc_id'])]
 # print('Property count after removing non RDMA multifamily properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
-
 
 if len(df[df['survdate'].isnull() == True]) > 0:
     print("There are rows that are missing a survey date")
