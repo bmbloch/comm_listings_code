@@ -2972,6 +2972,7 @@ class PrepareLogs:
                             dp.property_reis_rc_id, 
                             dp.property_er_id, 
                             dp.property_er_to_foundation_ids_list,
+                            dp.property_name,
                             dp.category, 
                             dp.subcategory, 
                             dp.property_geo_msa_code, 
@@ -3184,7 +3185,8 @@ class PrepareLogs:
         nc_add = nc_add[(nc_add['met_sub'].isin(valid_combos))]
         
         temp_combo['realid'] = temp_combo['realid'].astype(str)
-        log_ids = list(temp_combo.drop_duplicates('realid')['realid'])
+        log_dict = dict(zip(list(temp_combo.drop_duplicates('realid')['realid']), list(temp_combo.drop_duplicates('realid')['propname'])))
+        
         
         drop_list = []
         for index, row in nc_add.iterrows():
@@ -3195,15 +3197,44 @@ class PrepareLogs:
                 
                 for er_id in er_ids:
                     if er_id[0] == self.sector_map[self.sector]['prefix']:
-                        if er_id[1:] in log_ids and (nc_link not in er_ids or nc_link[1:] in log_ids):
+                        
+                        propname = row['property_name']
+                        er_propname = loc_dict[er_id[1:]]
+                        test1 = 'bldg' in propname.lower() or 'building' in propname.lower()
+                        test2 = 'bldg' in er_propname.lower() or 'building' in er_propname.lower()
+                        test3 = propname.split('bldg')[-1].strip().split(' ')[0].isdigit() 
+                        test4 = propname.split('building')[-1].strip().split(' ')[0].isdigit()
+                        test5 = er_propname.split('bldg')[-1].strip().split(' ')[0].isdigit() 
+                        test6 = er_propname.split('building')[-1].strip().split(' ')[0].isdigit()
+                        if test3:
+                            num = propname.split('bldg')[-1].strip().split(' ')[0]
+                        elif test4:
+                            num = propname.split('building')[-1].strip().split(' ')[0]
+                        else:
+                            num = '1'
+                        if test5:
+                            er_num = er_propname.split('bldg')[-1].strip().split(' ')[0]
+                        elif test6:
+                            er_num = er_propname.split('building')[-1].strip().split(' ')[0]
+                        else:
+                            er_num = '1'
+                        test7 = num != er_num
+                        
+                        if test1 and test2 and (test3 or test4) and (test5 and test6) and test7:
+                            building_test = True
+                        else:
+                            building_test = False
+                        
+                        if er_id[1:] in list(log_dict.keys()) and (nc_link not in er_ids or nc_link[1:] in list(log_dict.keys())) and not building_test:
                             drop_list.append(row['property_source_id'])
                             dropped = True
                             break
             if not dropped and row['property_reis_rc_id'] != '':
                 rc_id = row['property_reis_rc_id']
                 if rc_id[0] == self.sector_map[self.sector]['prefix']:
-                    if rc_id[1:] in log_ids:
+                    if rc_id[1:] in list(log_dict.keys()):
                         drop_list.append(row['property_source_id'])
+        
         
         temp = nc_add.copy()
         temp = temp[temp['property_source_id'].isin(drop_list)]
