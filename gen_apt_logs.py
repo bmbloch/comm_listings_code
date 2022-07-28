@@ -720,13 +720,14 @@ if update_umix:
     df['sum_units'] = df.groupby('property_source_id')['sum_units'].bfill()
     df['sum_units'] = df.groupby('property_source_id')['sum_units'].ffill()
     df['has_units'] = np.where(((df['sum_units'] > 0)) | (df['occupancy_number_of_units'] > 0), True, False)
-    temp = df.copy()
-    temp = temp[(temp['category'] != 'multifamily') & ((temp['subcategory'] != 'mixed_use') | (temp['has_units'] == False)) & (temp['property_source_id'] != temp['property_reis_rc_id'])]
-    temp['reason'] = 'property no longer multifamily'
-    drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
-    del temp
-    df = df[(df['category'] == 'multifamily') | ((df['subcategory'] =='mixed_use') & (df['has_units'])) | (df['property_source_id'] == df['property_reis_rc_id'])]
-    print('Property count after removing non RDMA multifamily properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
+    print("Put this in once we are confident that data is clean")
+    # temp = df.copy()
+    # temp = temp[(temp['category'] != 'multifamily') & ((temp['subcategory'] != 'mixed_use') | (temp['has_units'] == False)) & (temp['property_source_id'] != temp['property_reis_rc_id'])]
+    # temp['reason'] = 'property no longer multifamily'
+    # drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+    # del temp
+    # df = df[(df['category'] == 'multifamily') | ((df['subcategory'] =='mixed_use') & (df['has_units'])) | (df['property_source_id'] == df['property_reis_rc_id'])]
+    # print('Property count after removing non RDMA multifamily properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
     if len(df[df['survdate'].isnull() == True]) > 0:
         print("There are rows that are missing a survey date")
