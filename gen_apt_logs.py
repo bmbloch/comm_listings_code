@@ -491,7 +491,6 @@ df[(df['in_log'].isnull() == True) & (df['year'] >= curryr - 1) & (df['property_
 
 test = log_in.copy()
 temp = df.copy()
-temp = temp.drop(['in_log'],axis=1)
 temp['in_view'] = 1
 test['in_log'] = 1
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
