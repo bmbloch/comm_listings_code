@@ -371,6 +371,32 @@ df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_rei
 df['property_source_id'] = np.where((df['mult_property_source_id'].isnull() == False), df['mult_property_source_id'], df['property_source_id'])
 print('Property count unifying mult prop links: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
+temp = log_in.copy()
+temp = temp[['id'] + is_structural]
+for col in temp.columns:
+    if col == 'id':
+        continue
+    temp[col] = np.where((temp[col] == -1)| (temp[col] == '-1'), np.nan, temp[col])
+    temp.rename(columns={col: 'f_' + col}, inplace=True)
+temp['property_reis_rc_id'] = 'A' + temp['id'].astype(str)
+temp['in_log'] = 1
+df = df.drop(['in_log'],axis=1)
+df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['f_' + x for x in is_structural] + ['in_log']], on='property_reis_rc_id')
+del temp
+for col in is_structural:
+    df[col] = np.where((df['valid'] == 0) & (df['in_log'] == 1), df['f_' + col], df[col])
+df['mr_units'] = np.where((df['valid'] == 0) & (df['in_log'] == 1), df['totunits'], df['mr_units'])
+df['non_comp_units'] = np.where((df['valid'] == 0) & (df['in_log'] == 1), np.nan, df['non_comp_units'])
+temp = df.copy()
+temp = temp[(temp['valid'] == 0) & ((temp['nc_eligible'] == False) | (temp['property_reis_rc_id'] != ''))]
+temp['reason'] = 'Property is not publishable aptdata.com record, and is not in the log'
+drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+del temp
+df = df[(df['valid'] == 1) | (df['in_log'] == 1) | ((df['nc_eligible']) & (df['property_reis_rc_id'] == ''))]
+print("Property count after removing surveys that are not valid aptdata.com properties and have no umix in the legacy file: {:,}".format(len(df.drop_duplicates('property_source_id'))))
+df = df.drop(['f_' + x for x in is_structural] + ['in_log'], axis=1)
+
+
 test = log_in.copy()
 test['id'] = 'A' + test['id'].astype(str)
 log_cols = []
