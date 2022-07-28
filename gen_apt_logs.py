@@ -256,6 +256,8 @@ print('Property count after removing incremental surveys that occurred on the sa
 test = log_in.copy()
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 test['in_log'] = 1
+if 'in_log' in df.columns:
+    df = df.drop(['in_log'],axis=1)
 df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 
 for col in ['buildings_condominiumized_flag']:
