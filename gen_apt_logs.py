@@ -1018,7 +1018,7 @@ if update_umix:
     df['surveyquarter'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), "{} - Q{}".format(curryr, np.ceil(currmon/3)), df['surveyquarter'])
 
     df['catylist_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['property_source_id'])
-    df['propertyid'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'].str[1:], df['catylist_id'])
+    df['propertyid'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'], df['catylist_id'])
     df = df.rename(columns={'survdate': 'surveydate', 'normalized_rent_by_month_unit_average_amount': 'averagerent'})
     df = df[list(umix_in.columns) + ['property_reis_rc_id', 'property_source_id']]        
 
