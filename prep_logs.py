@@ -3199,7 +3199,7 @@ class PrepareLogs:
                     if er_id[0] == self.sector_map[self.sector]['prefix']:
                         
                         propname = row['property_name']
-                        er_propname = loc_dict[er_id[1:]]
+                        er_propname = log_dict[er_id[1:]]
                         test1 = 'bldg' in propname.lower() or 'building' in propname.lower()
                         test2 = 'bldg' in er_propname.lower() or 'building' in er_propname.lower()
                         test3 = propname.split('bldg')[-1].strip().split(' ')[0].isdigit() 
