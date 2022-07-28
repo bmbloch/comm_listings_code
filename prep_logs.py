@@ -3208,7 +3208,7 @@ class PrepareLogs:
         temp = temp[temp['property_source_id'].isin(drop_list)]
         if len(temp) > 0:
             temp['reason'] = 'property linked to reis ID already in the log'
-            temp['value'] = temp['property_er_to_foundation_ids_list'] + '/' + temp['property_reis_rc_id']
+            temp['value'] = np.where((temp['property_reis_rc_id'] != ''), temp['property_er_to_foundation_ids_list'] + '/' + temp['property_reis_rc_id'], temp['property_er_to_foundation_ids_list'])
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value']])                  
         nc_add = nc_add[~nc_add['property_source_id'].isin(drop_list)]
             
