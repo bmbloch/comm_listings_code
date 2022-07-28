@@ -589,8 +589,8 @@ if update_umix:
         df_in[col] = df_in[col].astype(float)
 
     if df_in['normalized_rent_by_month_unit_average_amount'].max() > 15000:
-        display(df_in.drop_duplicates(['property_source_id', 'spacetype']).sort_values(by=['normalized_rent_by_month_unit_average_amount'], ascending=[False]).head(10)[['property_source_id', 'property_reis_rc_id_an', 'normalized_rent_by_month_unit_average_amount', 'survdate', 'survey_legacy_data_source']])
-
+        display(df_in[df_in['normalized_rent_by_month_unit_average_amount'] > 15000].drop_duplicates(['property_source_id', 'spacetype']).sort_values(by=['normalized_rent_by_month_unit_average_amount'], ascending=[False]).head(10)[['property_source_id', 'property_reis_rc_id_an', 'normalized_rent_by_month_unit_average_amount', 'survdate', 'survey_legacy_data_source']].rename(columns={'property_source_id': 'c_id', 'property_reis_rc_id_an': 'r_id', 'normalized_rent_by_month_unit_average_amount': 'avgrent', 'survey_legacy_data_source': 'surv_source'}))
+    
     test = df_in.copy()
     test['survdate_d'] = pd.to_datetime(test['survdate'])
     if datetime.today().weekday() != 0:
@@ -1047,7 +1047,7 @@ if update_umix:
     df_survs['id_join'] = np.where((df_survs['id'].str.isdigit()), 'A' + df_survs['id'].astype(str), df_survs['property_source_id'])
     df_survs['in_surv'] = 1
     df['in_umix'] = 1
-    df['in_join'] = np.where((df['propertyid'].str[1:] == df['property_source_id']) | (df['propertyid'] == df['property_source_id']), df['property_source_id'], df['propertyid'])
+    df['id_join'] = np.where((df['propertyid'].str[1:] == df['property_source_id']) | (df['propertyid'] == df['property_source_id']), df['property_source_id'], df['propertyid'])
     df = df.join(df_survs.drop_duplicates('id_join').set_index('id_join')[['in_surv']], on='id_join')
     df_survs = df_survs.join(df.drop_duplicates('id_join').set_index('id_join')[['in_umix']], on='id_join')
 
