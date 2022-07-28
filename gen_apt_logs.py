@@ -529,10 +529,9 @@ df['survdate'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'
 df['realyr'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), curryr, df['realyr'])
 df['realqtr'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), np.ceil(currmon / 3), df['realqtr'])
 
-df['property_source_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['property_source_id'])
-df = df.rename(columns={'property_source_id': 'catylist_id'})
+df['catylist_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['property_source_id'])
 df['id'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'].str[1:], df['catylist_id'])
-df = df[list(log_in.columns) + ['property_reis_rc_id', 'catylist_id']]
+df = df[list(log_in.columns) + ['property_reis_rc_id', 'property_source_id']]
 
 df = df.join(live_subs[live_subs['subid'] == 90].drop_duplicates('metcode').set_index('metcode').rename(columns={'subid': 'tertiary_sub'})[['tertiary_sub']], on='metcode')
 df['subid'] = np.where((df['tertiary_sub'] == 90), df['tertiary_sub'], df['subid'])
@@ -558,8 +557,7 @@ drop_log['in_snap'] = drop_log['in_snap'].fillna(0)
 drop_log['in_snap'] = np.where((drop_log['property_reis_rc_id'] == ''), 0, drop_log['in_snap'])
 drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/drop_log_{}m{}.csv'.format(curryr, currmon), index=False)
 
-df.drop_duplicates('property_reis_rc_id').rename(columns={'id': 'property_source_id'})[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/property_ids.csv', index=False)
-
+df.drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/property_ids.csv', index=False)
 df = df.drop(['property_reis_rc_id'], axis=1)
 
 for met in log_in['metcode'].unique():
