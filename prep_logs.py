@@ -3009,7 +3009,7 @@ class PrepareLogs:
                             sbu.building_retail_use_size_sf
                             from consumption.v_d_property dp
                             left join consumption.v_property_building_use_size sbu on dp.property_source_id = sbu.property_source_id
-                            where extract(YEAR FROM date(dp.buildings_construction_expected_completion_date)) >= {} and dp.building_status = 'EXISTING' AND property_source_system_name = 'Catylist'""".format(self.curryr - 1))
+                            where (extract(YEAR FROM date(dp.buildings_construction_expected_completion_date)) >= {} or buildings_construction_year_built >= {}) and dp.building_status = 'EXISTING' AND property_source_system_name = 'Catylist'""".format(self.curryr - 1, self.curryr - 1))
             d_prop: pd.DataFrame = cursor.fetch_dataframe()
             d_prop.replace([None], np.nan, inplace=True)
             conn.close()
