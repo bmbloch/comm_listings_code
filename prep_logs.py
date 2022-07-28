@@ -3191,10 +3191,11 @@ class PrepareLogs:
             dropped = False
             if row['property_er_to_foundation_ids_list'] != '':
                 er_ids = row['property_er_to_foundation_ids_list'].split(',')
+                nc_link = row['property_catylist_nc_id']
                 
                 for er_id in er_ids:
                     if er_id[0] == self.sector_map[self.sector]['prefix']:
-                        if er_id[1:] in log_ids:
+                        if er_id[1:] in log_ids and (nc_link not in er_ids or nc_link[1:] in log_ids):
                             drop_list.append(row['property_source_id'])
                             dropped = True
                             break
