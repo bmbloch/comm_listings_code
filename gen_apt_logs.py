@@ -181,12 +181,16 @@ del temp
 df = df[(df['survey_legacy_data_source'].isin(['Foundation', 'ApartmentData.com'])) | ((df['survdate_d'] >= '06/01/2022') & (df['survey_legacy_data_source'] == ''))]
 print('Property count after removing test surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
+test = log_in.copy()
+test['in_log'] = 1
+test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
+df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 df = df.join(valid_aptdata.drop_duplicates('id').set_index('id')[['valid']], on='property_reis_rc_id')
 df['count_apt'] = df[df['survey_legacy_data_source'] == 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
 df['count_apt'] = df.groupby('property_source_id')['count_apt'].bfill()
 df['count_apt'] = df.groupby('property_source_id')['count_apt'].ffill()
 df['count_apt'] = df['count_apt'].fillna(0)
-df['valid'] = np.where((df['count_apt'] == 0) | (df['property_reis_rc_id'].str[0] != 'A'), 1, df['valid'])
+df['valid'] = np.where((df['count_apt'] == 0) | (df['property_reis_rc_id'].str[0] != 'A') | (df['in_log'].isnull() == True), 1, df['valid'])
 df['valid'] = df['valid'].fillna(0)
 temp = df.copy()
 temp['property_reis_rc_id'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] == 'A'), temp['property_er_to_foundation_ids_list'].str.split(',').str[0], temp['property_reis_rc_id'])
@@ -676,13 +680,15 @@ if update_umix:
     df = df[(df['survey_legacy_data_source'].isin(['Foundation', 'ApartmentData.com'])) | ((df['survdate_d'] >= '06/01/2022') & (df['survey_legacy_data_source'] == ''))]
     print('Property count after removing test surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-
+    test = umix_in.copy()
+    test['in_umix'] = 1
+    df = df.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
     df = df.join(valid_aptdata.drop_duplicates('id').set_index('id')[['valid']], on='property_reis_rc_id')
     df['count_apt'] = df[df['survey_legacy_data_source'] == 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
     df['count_apt'] = df.groupby('property_source_id')['count_apt'].bfill()
     df['count_apt'] = df.groupby('property_source_id')['count_apt'].ffill()
     df['count_apt'] = df['count_apt'].fillna(0)
-    df['valid'] = np.where((df['count_apt'] == 0) | (df['property_reis_rc_id'].str[0] != 'A'), 1, df['valid'])
+    df['valid'] = np.where((df['count_apt'] == 0) | (df['property_reis_rc_id'].str[0] != 'A') | (df['in_umix'].isnull() == True), 1, df['valid'])
     df['valid'] = df['valid'].fillna(0)
     temp = df.copy()
     temp['property_reis_rc_id'] = np.where((temp['property_reis_rc_id'] == '') & (temp['property_er_to_foundation_ids_list'].str[0] == 'A'), temp['property_er_to_foundation_ids_list'].str.split(',').str[0], temp['property_reis_rc_id'])
