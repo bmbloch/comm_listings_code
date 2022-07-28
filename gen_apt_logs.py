@@ -1010,11 +1010,10 @@ if update_umix:
     df['survdate'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), '{}/15/{}'.format(currmon, curryr), df['survdate'])
     df['surveyquarter'] = np.where((df['year'] >= curryr - 1) & (df['property_reis_rc_id'] == '') & (df['count'] == 1), "{} - Q{}".format(curryr, np.ceil(currmon/3)), df['surveyquarter'])
 
-    df['property_source_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['property_source_id'])
-    df = df.rename(columns={'property_source_id': 'catylist_id'})
-    df['propertyid'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'], df['catylist_id'])
+    df['catylist_id'] = np.where((df['property_reis_rc_id'] == '') & (df['property_source_id'].str.isdigit()), 'a' + df['property_source_id'], df['property_source_id'])
+    df['propertyid'] = np.where((df['property_reis_rc_id'] != ''), df['property_reis_rc_id'].str[1:], df['catylist_id'])
     df = df.rename(columns={'survdate': 'surveydate', 'normalized_rent_by_month_unit_average_amount': 'averagerent'})
-    df = df[list(umix_in.columns) + ['property_reis_rc_id', 'catylist_id']]          
+    df = df[list(umix_in.columns) + ['property_reis_rc_id', 'property_source_id']]        
 
     display(pd.DataFrame(drop_log.groupby('reason')['property_source_id'].count()).rename(columns={'property_source_id': 'count'}).sort_values(by=['count'], ascending=[False]))
     test = umix_in.copy()
