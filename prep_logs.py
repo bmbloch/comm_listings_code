@@ -3021,6 +3021,11 @@ class PrepareLogs:
             d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(self.home), na_values= "", keep_default_na = False)
           
         nc_add = d_prop.copy()
+
+        nc_add['property_source_id'] = nc_add['property_source_id'].astype(str)
+        nc_add['property_reis_rc_id'] = nc_add['property_reis_rc_id'].astype(str)
+        nc_add['property_reis_rc_id'] = np.where((nc_add['property_reis_rc_id'].str[0].isin(['I', 'O'])), nc_add['property_reis_rc_id'].str[:-1], nc_add['property_reis_rc_id'])
+        
         
         nc_add['const_year'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.year
         nc_add['month'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.month
@@ -3056,11 +3061,6 @@ class PrepareLogs:
             temp['value'] = temp['const_year'].astype(str) + ',' + temp['buildings_construction_year_built'].astype(str).str.split('.').str[0] + ',' + temp['buildings_construction_year_renovated'].astype(str)
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value']])
         nc_add = nc_add[(nc_add['const_year'] == nc_add['buildings_construction_year_built']) | (nc_add['buildings_construction_year_built'].isnull() ==True) | (nc_add['const_year'] == nc_add['buildings_construction_year_renovated'])]
-        
-        
-        nc_add['property_source_id'] = nc_add['property_source_id'].astype(str)
-        nc_add['property_reis_rc_id'] = nc_add['property_reis_rc_id'].astype(str)
-        nc_add['property_reis_rc_id'] = np.where((nc_add['property_reis_rc_id'].str[0].isin(['I', 'O'])), nc_add['property_reis_rc_id'].str[:-1], nc_add['property_reis_rc_id'])
         
         nc_add['buildings_size_rentable_sf'] = np.where((nc_add['buildings_size_rentable_sf'] == ''), np.nan,nc_add['buildings_size_rentable_sf'])
         nc_add['buildings_size_rentable_sf'] = nc_add['buildings_size_rentable_sf'].astype(float)
