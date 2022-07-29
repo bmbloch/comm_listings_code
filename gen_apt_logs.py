@@ -248,7 +248,7 @@ df['dupe_source_check'] = np.where((df['count_source'] > 1), 1, 0)
 if len(df[df['dupe_source_check'] == 1]) > 0:
     print("There are surveys on the same date for different sources")
 
-df['completed_date_full'] = np.where((df['survey_legacy_data_source'] == 'Foundation'), np.nan, df['completed_date_full'])
+df['completed_date_full'] = np.where((df['survey_legacy_data_source'] == 'Foundation'), np.datetime64('NaT'), df['completed_date_full'])
 df.sort_values(by=['property_source_id', 'completed_date_full', 'ren0', 'ren1', 'ren2', 'ren3', 'ren4', 'vac0', 'vac1', 'vac2', 'vac3', 'vac4'], ascending=[True, False, False, False, False, False, False, False, False, False, False, False], inplace=True)
 df['count_no_ts'] = df.groupby(['property_source_id', 'survdate'])['property_source_id'].transform('count')
 df['cumcount_id'] = df.groupby('property_source_id')['property_source_id'].transform('cumcount')
@@ -737,7 +737,7 @@ if update_umix:
     if len(df[df['dupe_source_check'] == 1]) > 0:
         print("There are surveys on the same date for different sources")
 
-    df['completed_date_full'] = np.where((df['survey_legacy_data_source'] == 'Foundation'), np.nan, df['completed_date_full'])
+    df['completed_date_full'] = np.where((df['survey_legacy_data_source'] == 'Foundation'), np.datetime64('NaT'), df['completed_date_full'])
     df.sort_values(by=['property_source_id', 'completed_date_full'], ascending=[True, False], inplace=True)
     df['count_no_ts'] = df.groupby(['property_source_id', 'survdate', 'spacetype'])['property_source_id'].transform('count')
     df['cumcount_id'] = df.groupby(['property_source_id', 'spacetype'])['property_source_id'].transform('cumcount')
