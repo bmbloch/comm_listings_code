@@ -3200,10 +3200,10 @@ class PrepareLogs:
                         
                         if er_id[1:] in list(log_dict.keys()):
                         
-                            propname = row['property_name']
-                            er_propname = log_dict[er_id[1:]]
-                            test1 = 'bldg' in propname.lower() or 'building' in propname.lower()
-                            test2 = 'bldg' in er_propname.lower() or 'building' in er_propname.lower()
+                            propname = row['property_name'].lower()
+                            er_propname = log_dict[er_id[1:]].lower()
+                            test1 = 'bldg' in propname or 'building' in propname
+                            test2 = 'bldg' in er_propname or 'building' in er_propname
                             test3 = propname.split('bldg')[-1].strip().split(' ')[0].isdigit() 
                             test4 = propname.split('building')[-1].strip().split(' ')[0].isdigit()
                             test5 = er_propname.split('bldg')[-1].strip().split(' ')[0].isdigit() 
