@@ -463,9 +463,10 @@ temp = temp[~(temp['geo_ident'].isin(test['geo_ident'].unique())) & ((temp['subi
 temp['reason'] = 'Property linked to metcode subid combination that does not exist for apartment'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
-del test
+
 
 df = df[(df['geo_ident'].isin(test['geo_ident'].unique())) | ((df['subid'].isnull() == True) & (df['metcode'].isin(log_in['metcode'].unique())))]
+del test
 print('Property count after removing properties with metro sub combos that are not valid apt combos: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 if use_reis_yr:
@@ -954,9 +955,9 @@ if update_umix:
     temp['reason'] = 'Property linked to metcode subid combination that does not exist for apartment'
     drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
     del temp
-    del test
 
     df = df[(df['geo_ident'].isin(test['geo_ident'].unique())) | ((df['subid'].isnull() == True) & (df['metcode'].isin(log_in['metcode'].unique())))]
+    del test
     print('Property count after removing properties with metro sub combos that are not valid apt combos: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
     for col in df.columns:
