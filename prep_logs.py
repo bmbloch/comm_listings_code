@@ -3234,7 +3234,7 @@ class PrepareLogs:
                             test7 = num != er_num
                             
                             if test1 and test2 and (test3 or test4) and (test5 or test6) and test7:
-                                if num == row['location_street_address'].strip().split(' ').str[0] and len(num) > 2:
+                                if num == row['location_street_address'].strip().split(' ')[0] and len(num) > 2:
                                     building_test = False
                                 else:
                                     building_test = True
