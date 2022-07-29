@@ -1025,8 +1025,11 @@ if update_umix:
 
     df.drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/property_ids.csv', index=False)
 
+    del df_in
     del log_in
     del umix_in
+    del valid_aptdata
+    del live_subs
 
     df = df.drop(['property_reis_rc_id'], axis=1)
     path = '/home/central/vc/mfp/finaltoit/anytime/umix_test_bb/umixfamily.txt'
