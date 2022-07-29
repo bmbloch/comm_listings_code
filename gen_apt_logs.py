@@ -313,6 +313,8 @@ test = log_in.copy()
 test['id'] = test['id'].astype(str)
 log_ids = list(test.drop_duplicates('id')['id'])
 
+del test
+
 drop_list = []
 for index, row in temp.iterrows():
     if row['property_er_to_foundation_ids_list'] != '':
@@ -330,6 +332,7 @@ temp['reason'] = 'Property potential new construction, but ER link indicates pro
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 
 df = df[~df['property_source_id'].isin(drop_list)]
+del temp
 print('Property count after removing potential nc properties that likely already exist in the log: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
@@ -339,6 +342,7 @@ drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property
 temp['drop_this'] = 1
 df = df.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['drop_this']], on='property_source_id')
 df = df[df['drop_this'].isnull() == True]
+del temp
 print('Property count after removing potential nc properties without total units: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
 temp = df.copy()
@@ -366,6 +370,7 @@ temp['max_source_link'] = temp.groupby('property_reis_rc_id')['count_source_link
 temp = temp[temp['count_source_link'] == temp['max_source_link']]
 
 df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id').rename(columns={'property_source_id': 'mult_property_source_id'})[['mult_property_source_id']], on='property_reis_rc_id')
+del temp
 df['property_source_id'] = np.where((df['mult_property_source_id'].isnull() == False), df['mult_property_source_id'], df['property_source_id'])
 print('Property count unifying mult prop links: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
@@ -458,6 +463,7 @@ temp = temp[~(temp['geo_ident'].isin(test['geo_ident'].unique())) & ((temp['subi
 temp['reason'] = 'Property linked to metcode subid combination that does not exist for apartment'
 drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
 del temp
+del test
 
 df = df[(df['geo_ident'].isin(test['geo_ident'].unique())) | ((df['subid'].isnull() == True) & (df['metcode'].isin(log_in['metcode'].unique())))]
 print('Property count after removing properties with metro sub combos that are not valid apt combos: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
@@ -471,6 +477,7 @@ if use_reis_yr:
     df[((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & ((df['year'] != df['f_year']) | (df['month'] != df['f_month'])) & (df['f_year'].isnull() == False)].drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id', 'year', 'month', 'f_year', 'f_month']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/year_built_diffs_{}m{}.csv'.format(curryr, currmon), index=False)
     df['month'] = np.where(((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & (df['f_year'].isnull() == False), df['f_month'], df['month'])
     df['year'] = np.where(((df['year'] >= curryr - 3) | (df['f_year'] >= curryr - 3)) & (df['f_year'].isnull() == False), df['f_year'], df['year'])
+    del test
 df['renov'] = np.where((df['renov'].isnull() == False) & (df['renov'] < df['year']), np.nan, df['renov'])
 
 for col in df.columns:
@@ -515,6 +522,8 @@ if temp[(temp['count_rows_log'] > 3000) | (temp['count_rows_df'] == 0)]['perc_di
     print("There is a significant difference in historical rows between the legacy download and the preprocessed logs")
 temp[['metcode', 'count_rows_log', 'count_rows_df', 'diff', 'perc_diff']].sort_values(by=['perc_diff'], ascending=[False]).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/diff_log_report_{}m{}.csv'.format(curryr, currmon), index=False)
 
+del temp1
+
 df['survdate'] = pd.to_datetime(df['survdate']).dt.strftime('%m/%d/%Y')
 df['count'] = df[df['survey_legacy_data_source'] != 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
 df['count'] = df.groupby('property_source_id')['count'].bfill()
@@ -550,6 +559,9 @@ drop_log = drop_log.join(temp.drop_duplicates('property_reis_rc_id').set_index('
 drop_log['in_snap'] = drop_log['in_snap'].fillna(0)
 drop_log['in_snap'] = np.where((drop_log['property_reis_rc_id'] == ''), 0, drop_log['in_snap'])
 drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/drop_log_{}m{}.csv'.format(curryr, currmon), index=False)
+
+del test
+del test1
 
 df.drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/apt/property_ids.csv', index=False)
 df = df.drop(['property_reis_rc_id'], axis=1)
@@ -621,6 +633,7 @@ if update_umix:
     temp = temp.drop_duplicates(['property_source_id', 'spacetype', 'survdate'])
     df = df[df['survey_legacy_data_source'] != 'Foundation']
     df = df.append(temp, ignore_index=True)
+    del temp
 
     if len(df[df['property_source_id'] == '']) > 0:
         print("There are properties without an id")
@@ -651,6 +664,7 @@ if update_umix:
     test['in_umix'] = 1
     test = test[test['surveydate'].isnull() == False]
     df = df.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
+    del test
 
     display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
@@ -801,6 +815,7 @@ if update_umix:
 
     test = umix_in.copy()
     umix_ids = list(test.drop_duplicates('propertyid')['propertyid'])
+    del test
 
     drop_list = []
     for index, row in temp.iterrows():
@@ -812,11 +827,12 @@ if update_umix:
                     if er_id in umix_ids:
                         drop_list.append(row['property_source_id'])
                         break
-
+    
     temp = df.copy()
     temp = temp[(temp['property_source_id'].isin(drop_list))]
     temp['reason'] = 'Property potential new construction, but ER link indicates property is already in umix'
     drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
+    del temp
 
     df = df[~df['property_source_id'].isin(drop_list)]
     print('Property count after removing potential nc properties that likely already exist in the log: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
@@ -828,6 +844,7 @@ if update_umix:
     temp['drop_this'] = 1
     df = df.join(temp.drop_duplicates('property_source_id').set_index('property_source_id')[['drop_this']], on='property_source_id')
     df = df[df['drop_this'].isnull() == True]
+    del temp
     print('Property count after removing potential nc properties without total units: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
     temp = df.copy()
@@ -856,6 +873,7 @@ if update_umix:
 
     df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id').rename(columns={'property_source_id': 'mult_property_source_id'})[['mult_property_source_id']], on='property_reis_rc_id')
     df['property_source_id'] = np.where((df['mult_property_source_id'].isnull() == False), df['mult_property_source_id'], df['property_source_id'])
+    del temp
     print('Property count unifying mult prop links: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
     temp = umix_in.copy()
@@ -945,6 +963,7 @@ if update_umix:
     temp['reason'] = 'Property linked to metcode subid combination that does not exist for apartment'
     drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
     del temp
+    del test
 
     df = df[(df['geo_ident'].isin(test['geo_ident'].unique())) | ((df['subid'].isnull() == True) & (df['metcode'].isin(log_in['metcode'].unique())))]
     print('Property count after removing properties with metro sub combos that are not valid apt combos: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
@@ -991,6 +1010,9 @@ if update_umix:
         print("There is a significant difference in historical rows between the legacy umix and the preprocessed umix")
     temp[['metcode', 'count_rows_umix', 'count_rows_df', 'diff', 'perc_diff']].sort_values(by=['perc_diff'], ascending=[False]).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/diff_log_report_{}m{}.csv'.format(curryr, currmon), index=False)
 
+    del test
+    del temp
+
     df['survdate'] = pd.to_datetime(df['survdate']).dt.strftime('%m/%d/%Y')
     df['count'] = df[df['survey_legacy_data_source'] != 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
     df['count'] = df.groupby('property_source_id')['count'].bfill()
@@ -1023,6 +1045,9 @@ if update_umix:
     drop_log['in_snap'] = np.where((drop_log['property_reis_rc_id'] == ''), 0, drop_log['in_snap'])
 
     drop_log.to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/drop_log_{}m{}.csv'.format(curryr, currmon), index=False) 
+
+    del temp
+    del test
 
     df.drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/property_ids.csv', index=False)
 
