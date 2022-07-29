@@ -3222,7 +3222,7 @@ class PrepareLogs:
                                 er_num = '1'
                             test7 = num != er_num
                             
-                            if test1 and test2 and (test3 or test4) and (test5 and test6) and test7:
+                            if test1 and test2 and (test3 or test4) and (test5 or test6) and test7:
                                 building_test = True
                             else:
                                 building_test = False
