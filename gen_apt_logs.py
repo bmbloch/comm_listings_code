@@ -648,6 +648,7 @@ if update_umix:
 
     test = umix_in.copy()
     test['in_umix'] = 1
+    test = test[test['surveydate'].isnull() == False]
     df = df.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
 
     display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
