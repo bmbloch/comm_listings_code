@@ -1062,7 +1062,7 @@ if update_umix:
 
     temp = df.copy()
     temp = temp[temp['in_surv'].isnull() == True]
-    temp = temp[~temp['selectcodeshortdesc'].isin(['IAA', 'IAG', 'D', 'Q', 'S', 'EC', 'X', 'IAZ', 'IAU', 'I', 'T', 'IAR', 'E', 'IAT', 'IAK', 'IAI', 'B', 'P', 'TAX', 'NC'])]
+    temp = temp[~temp['selectcode'].isin(['IAA', 'IAG', 'D', 'Q', 'S', 'EC', 'X', 'IAZ', 'IAU', 'I', 'T', 'IAR', 'E', 'IAT', 'IAK', 'IAI', 'B', 'P', 'TAX', 'NC'])]
     print("{:,} ids with live select codes that made it into umix that did not make it into the logs".format(len(temp.drop_duplicates('id_join'))))
     if len(temp) > 0:
         temp = temp.join(drop_log_survs.drop_duplicates('property_source_id').set_index('property_source_id')[['reason']], on='property_source_id')
