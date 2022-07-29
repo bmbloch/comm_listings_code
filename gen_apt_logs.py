@@ -159,6 +159,7 @@ df['free_rent'] = round(df['free_rent'],3)
 
 test = log_in.copy()
 test['in_log'] = 1
+test = test[test['survdate'].isnull() == False]
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 
