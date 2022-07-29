@@ -1025,9 +1025,12 @@ if update_umix:
 
     df.drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/property_ids.csv', index=False)
 
+    del log_in
+    del umix_in
+
     df = df.drop(['property_reis_rc_id'], axis=1)
     path = '/home/central/vc/mfp/finaltoit/anytime/umix_test_bb/umixfamily.txt'
-    df.to_csv(r'{}'.format(path), header=df.columns, index=None, sep=',', mode='w')  
+    df.to_csv(r'{}'.format(path), header=df.columns, index=None, sep=',', mode='w')
 
 
     df_survs['id_join'] = np.where((df_survs['id'].str.isdigit()), 'A' + df_survs['id'].astype(str), df_survs['property_source_id'])
