@@ -121,6 +121,8 @@ del test
 df = df_in.copy()
 drop_log = pd.DataFrame()
 
+df = df.rename(columns={'first_year': 'year', 'first_month': 'month'})
+
 df['property_reis_rc_id'] = df['property_reis_rc_id_an']
 df['property_reis_rc_id'] = np.where((df['property_reis_rc_id'].str[0] == 'L'), 'A'+ df['property_reis_rc_id'].str[1:], df['property_reis_rc_id'])
 df['property_reis_rc_id'] = np.where((df['property_reis_rc_id'].str[-1] == '-'), df['property_reis_rc_id'].str[:-1], df['property_reis_rc_id'])
