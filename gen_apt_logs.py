@@ -626,15 +626,6 @@ if update_umix:
 
     df['property_source_id'] = df['property_source_id'].astype(str)
 
-    print("Dont need this when AS fixes historical dupes issue")
-    # Second fix in case foundation surveys are duplicated due to aptdata.com dupe fps
-    temp = df.copy()
-    temp = temp[temp['survey_legacy_data_source'] == 'Foundation']
-    temp = temp.drop_duplicates(['property_source_id', 'spacetype', 'survdate'])
-    df = df[df['survey_legacy_data_source'] != 'Foundation']
-    df = df.append(temp, ignore_index=True)
-    del temp
-
     if len(df[df['property_source_id'] == '']) > 0:
         print("There are properties without an id")
 
