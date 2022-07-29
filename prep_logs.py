@@ -3052,7 +3052,7 @@ class PrepareLogs:
         temp = temp[(temp['const_year'] > self.curryr) | ((temp['const_year'] == self.curryr) & (temp['month'] > self.currmon))]
         if len(temp) > 0:
             temp['reason'] = 'construction completion date is in the future'
-            temp['value'] = np.where((temp['month'].isnull() == False),temp['month'].astype(str) + '/' + temp['const_year'].astype(str), temp['const_year'])
+            temp['value'] = np.where((temp['month'].isnull() == False), temp['month'].astype(str).str.split('.').str[0] + '/' + temp['const_year'].astype(str).str.split('.').str[0], temp['const_year'])
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value']])
         nc_add = nc_add[(nc_add['const_year'] < self.curryr) | ((nc_add['const_year'] == self.curryr) & (nc_add['month'] <= self.currmon))]
         
