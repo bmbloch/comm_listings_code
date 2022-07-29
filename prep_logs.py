@@ -2972,7 +2972,6 @@ class PrepareLogs:
                             dp.property_reis_rc_id, 
                             dp.property_er_id, 
                             dp.property_er_to_foundation_ids_list,
-                            dp.property_name,
                             dp.category, 
                             dp.subcategory, 
                             dp.property_geo_msa_code, 
