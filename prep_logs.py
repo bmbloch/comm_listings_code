@@ -358,7 +358,7 @@ class PrepareLogs:
             log = log.join(temp.set_index('realid').rename(columns={'type2': 'mr_type2'})[['mr_type2']], on='realid')
             log['type2'] = np.where((log['mr_type2'].isnull() == False), log['mr_type2'], log['type2'])
             log = log.drop(['mr_type2'], axis=1)
-                             
+        
         log['state'] = np.where((log['state'] == '--'), '', log['state'])
 
         return log, self.stop
@@ -604,7 +604,7 @@ class PrepareLogs:
 
         test_data['lease_terms_cleaned'] = np.where((test_data['lease_sublease'] == 1) | (test_data['lease_terms'].str.contains('sub') == True) | (test_data['lease_terms_cleaned'] < 0.25) | (test_data['lease_terms'].str.contains('ground lease') == True), np.nan, test_data['lease_terms_cleaned'])
     
-        test_data['lease_transaction_leasetermmonths'] = np.where((test_data['lease_transaction_leasetermmonths'].isnull() == False), test_data['lease_transaction_leasetermmonths'], test_data['lease_terms_cleaned'])
+        test_data['lease_transaction_leasetermmonths'] = np.where((test_data['lease_transaction_leasetermmonths'].isnull() == False), round(test_data['lease_transaction_leasetermmonths'] / 12, 2), test_data['lease_terms_cleaned'])
     
         return test_data
     
@@ -979,7 +979,7 @@ class PrepareLogs:
         temp['anchor_within_business_park_size_sf'] = np.where((temp['a_size_filled'].isnull() == False), temp['a_size_filled'], temp['anchor_within_business_park_size_sf'])
         temp['nonanchor_within_business_park_size_sf'] = np.where((temp['n_size_filled'].isnull() == False), temp['n_size_filled'], temp['nonanchor_within_business_park_size_sf'])
         temp = temp.drop_duplicates('park_identity')
-        # If the year built is recent, then the prop should not be grouped with other bp park props and receive its own net new id
+        test_data = test_data.join(temp.set_index('park_identity').rename(columns={'foundation_property_id': 'foundation_property_id_from_park', 'metcode': 'metcode_from_park', 'gsub': 'subid_from_park', bp_field: 'tot_size_from_park', 'anchor_within_business_park_size_sf': 'anchor_size_from_park', 'nonanchor_within_business_park_size_sf': 'nonanchor_size_from_park', 'type1': 'type1_from_park'})[['foundation_property_id_from_park', 'metcode_from_park', 'subid_from_park', 'tot_size_from_park', 'anchor_size_from_park', 'nonanchor_size_from_park', 'type1_from_park']], on='park_identity')
         test_data['bp_eligible'] = np.where((test_data['foundation_property_id'] == '') & ((test_data['first_year'] < 2021) | (test_data['first_year'].isnull() == True)), True, False)
         test_data['use_park'] = np.where((test_data['bp_eligible']) & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), True, test_data['use_park'])
         test_data['size_method'] = np.where((test_data['bp_eligible']) & (test_data['foundation_property_id'] == '') & (test_data['foundation_property_id_from_park'].isnull() == False) & (test_data['space_category'].isin(self.space_map[self.sector] + [''])), 'Linked To Catylist ID Via BP', test_data['size_method'])
@@ -1096,7 +1096,7 @@ class PrepareLogs:
             test_data['n_size'] = np.where((test_data['test1']) & (test_data['test2']) & (test_data['test3'] == False), test_data['n_size_aggreg'], test_data['n_size'])
             test_data['a_size'] = np.where((test_data['test1']) & (test_data['test2']) & (test_data['test3'] == False), test_data['a_size_aggreg'], test_data['a_size'])
         test_data['size_method'] = np.where((test_data['test1']) & (test_data['test2']) & (test_data['test3'] == False), 'Mult Link SQFT', test_data['size_method'])
-            
+        
         return test_data, id_check
         
     def apply_reis_id(self, test_data, decision, log):
@@ -1365,7 +1365,7 @@ class PrepareLogs:
             test_data['reason'] = np.where(((test_data['retail_center_type'] != '') | (test_data['subcategory'] == '')) & (self.sector == 'ret') & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, cannot determine N or C subcat', test_data['reason'])
             test_data['reason'] = np.where((self.sector in ['off', 'ind']) & (test_data['tot_size'] < 10000) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, size less than 10k sqft', test_data['reason'])
             test_data['reason'] = np.where(((test_data['property_geo_msa_code'] == '') | (test_data['property_geo_subid'].isnull() == True)) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, no geo msa or subid', test_data['reason'])
-            test_data['reason'] = np.where((~test_data['met_sub'].isin(valid_combos)) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, met/subid combo does not exist for this sector', test_data['reason'])
+            test_data['reason'] = np.where((~test_data['met_sub'].isin(valid_combos)) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'New New Catylist prop, met/subid combo does not exist for this sector', test_data['reason'])
             test_data['reason'] = np.where(((test_data['first_year'] > self.curryr) | ((test_data['first_year'] == self.curryr) & (test_data['buildings_construction_expected_completion_month'] > self.currmon))) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, completion date in future', test_data['reason'])
             test_data['reason'] = np.where((test_data['first_year'] >= self.curryr - 3) & (test_data['buildings_construction_expected_completion_month'].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, in NC rebench window and missing month built', test_data['reason'])
             test_data['reason'] = np.where((test_data['first_year'] >= self.curryr - 3) & (test_data['tot_size'].isnull() == True) & (test_data[size_by_use].isnull() == True) & (test_data['leg'] == False) & (test_data['reason'] == 'Keep'), 'Net New Catylist prop, in NC rebench window and missing total size', test_data['reason'])
@@ -1404,7 +1404,7 @@ class PrepareLogs:
             if self.sector == 'ret':
                 test_data['type2'] = np.where((test_data['type1'] == ''), 'N', test_data['type2'])
                 test_data['type1'] = np.where((test_data['type1'] == ''), 'N', test_data['type1'])
-        
+                
         test_data['renov_year'] = np.where((test_data['renov_year'] >= test_data['first_year']) & (test_data['first_year'].isnull() == False) & (test_data['leg'] == False), np.nan, test_data['renov_year'])
         
         # Drop properties that have no spaces that are for publishable reis types for the sector
@@ -2019,7 +2019,7 @@ class PrepareLogs:
                 lse = 'anc_term'
             
             temp1 = temp.copy()
-            temp1 = temp1[(temp1['lease_transaction_leasetermmonths'] / 12 < temp1[lse + '_l_range']) | (temp1['lease_transaction_leasetermmonths'] / 12 > temp1[lse + '_h_range'])]
+            temp1 = temp1[(temp1['lease_transaction_leasetermmonths'] < temp1[lse + '_l_range']) | (temp1['lease_transaction_leasetermmonths'] > temp1[lse + '_h_range'])]
             if len(temp1) > 0:    
                 logging.info("lease term has values outside the historical surveyed range boundaries")
                 temp1['flag'] = 'Range Outlier - Space Level'
@@ -2028,11 +2028,10 @@ class PrepareLogs:
                 temp1['status'] = 'dropped'
                 self.logic_log = self.logic_log.append(temp1.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
             
-            temp['lease_transaction_leasetermmonths'] = np.where((temp['lease_transaction_leasetermmonths'] / 12 < temp[lse + '_l_range']) | (temp['lease_transaction_leasetermmonths'] / 12 > temp[lse + '_h_range']), np.nan, temp['lease_transaction_leasetermmonths'])
+            temp['lease_transaction_leasetermmonths'] = np.where((temp['lease_transaction_leasetermmonths'] < temp[lse + '_l_range']) | (temp['lease_transaction_leasetermmonths'] > temp[lse + '_h_range']), np.nan, temp['lease_transaction_leasetermmonths'])
             temp[prefix + 'prop_term'] = temp.groupby('id_use')['lease_transaction_leasetermmonths'].transform('mean')
             temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_term']], on='id_use') 
-            test_data[prefix + 'prop_term'] = round(test_data[prefix + 'prop_term'] / 12, 2)
+            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_term']], on='id_use')
             
             if self.sector == "off" or self.sector == "ind":
                 crd = 'c_rent'
@@ -2959,7 +2958,7 @@ class PrepareLogs:
                     inc['renov'] = np.where((inc['renov'].isnull() == True) & (inc['renov_log'].isnull() == False), inc['renov_log'], inc['renov'])
                     inc = inc.drop(['renov_log'], axis=1)
                     log_aligned.drop(['renov_log'], axis=1)
-                    
+            
         return inc, log_aligned
     
     def append_nc_completions(self, combo, d_prop, log):
@@ -3021,11 +3020,10 @@ class PrepareLogs:
             d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(self.home), na_values= "", keep_default_na = False)
           
         nc_add = d_prop.copy()
-
+        
         nc_add['property_source_id'] = nc_add['property_source_id'].astype(str)
         nc_add['property_reis_rc_id'] = nc_add['property_reis_rc_id'].astype(str)
         nc_add['property_reis_rc_id'] = np.where((nc_add['property_reis_rc_id'].str[0].isin(['I', 'O'])), nc_add['property_reis_rc_id'].str[:-1], nc_add['property_reis_rc_id'])
-        
         
         nc_add['buildings_construction_expected_completion_date'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date'])
         nc_add['buildings_construction_expected_groundbreak_date'] = pd.to_datetime(nc_add['buildings_construction_expected_groundbreak_date'])
@@ -3052,7 +3050,7 @@ class PrepareLogs:
         temp = temp[(temp['const_year'] > self.curryr) | ((temp['const_year'] == self.curryr) & (temp['month'] > self.currmon))]
         if len(temp) > 0:
             temp['reason'] = 'construction completion date is in the future'
-            temp['value'] = np.where((temp['month'].isnull() == False), temp['month'].astype(str).str.split('.').str[0] + '/' + temp['const_year'].astype(str).str.split('.').str[0], temp['const_year'])
+            temp['value'] = np.where((temp['month'].isnull() == False),temp['month'].astype(str).str.split('.').str[0] + '/' + temp['const_year'].astype(str).str.split('.').str[0], temp['const_year'])
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value']])
         nc_add = nc_add[(nc_add['const_year'] < self.curryr) | ((nc_add['const_year'] == self.curryr) & (nc_add['month'] <= self.currmon))]
         
@@ -3181,7 +3179,7 @@ class PrepareLogs:
             temp['reason'] = 'property not assigned geo met or sub'
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason']])
         nc_add = nc_add[(nc_add['property_geo_msa_code'] != '') & (nc_add['property_geo_subid'].isnull() == False)]
-
+        
         temp1 = log.copy()
         temp1 = temp1[(temp1['metcode'].isnull() == False) & (temp1['metcode'] != '') & (temp1['subid'].isnull() == False)]
         temp1['met_sub'] = temp1['metcode'] + '/' + temp1['subid'].astype(str).str.split('.').str[0]
@@ -3194,6 +3192,7 @@ class PrepareLogs:
             temp['reason'] = 'met/sub combination not valid for this sector'
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason']])
         nc_add = nc_add[(nc_add['met_sub'].isin(valid_combos))]
+        
         
         temp_combo['realid'] = temp_combo['realid'].astype(str)
         log_dict = dict(zip(list(temp_combo.drop_duplicates('realid')['realid']), list(temp_combo.drop_duplicates('realid')['propname'])))
@@ -3232,7 +3231,7 @@ class PrepareLogs:
                             else:
                                 er_num = '1'
                             test7 = num != er_num
-                            
+
                             if test1 and test2 and (test3 or test4) and (test5 or test6) and test7:
                                 if num == row['location_street_address'].strip().split(' ')[0] and len(num) > 2:
                                     building_test = False
@@ -3242,7 +3241,7 @@ class PrepareLogs:
                                 building_test = False
                         else:
                             building_test = False
-                            
+                        
                         if er_id[1:] in list(log_dict.keys()) and (nc_link not in er_ids or nc_link[1:] in list(log_dict.keys())) and not building_test:
                             drop_list.append(row['property_source_id'])
                             dropped = True
@@ -3252,7 +3251,6 @@ class PrepareLogs:
                 if rc_id[0] == self.sector_map[self.sector]['prefix']:
                     if rc_id[1:] in list(log_dict.keys()):
                         drop_list.append(row['property_source_id'])
-        
         
         temp = nc_add.copy()
         temp = temp[temp['property_source_id'].isin(drop_list)]
@@ -3887,7 +3885,7 @@ class PrepareLogs:
         self.drop_log['r_sector'] = self.sector
         
         self.drop_log = self.drop_log.rename(columns={'space_category': 'c_space_category'})
-
+        
         self.nc_add['in_nc_add'] = 1
         self.drop_log = self.drop_log.join(self.nc_add.drop_duplicates('property_source_id').set_index('property_source_id')[['in_nc_add']], on='c_id')
         self.drop_log = self.drop_log[self.drop_log['in_nc_add'].isnull() == True]
