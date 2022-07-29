@@ -311,7 +311,7 @@ temp = temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) &
 
 test = log_in.copy()
 test['id'] = test['id'].astype(str)
-log_ids = list(test.drop_duplicates('id')['id'])
+log_ids = list(test[test['survdate'].isnull() == False].drop_duplicates('id')['id'])
 
 del test
 
@@ -806,7 +806,7 @@ if update_umix:
     temp = temp[(temp['property_reis_rc_id'] == '') & (temp['year'] >= curryr - 1) & (temp['in_umix'].isnull() == True)]
 
     test = umix_in.copy()
-    umix_ids = list(test.drop_duplicates('propertyid')['propertyid'])
+    umix_ids = list(test[test['surveydate'].isnull() == False].drop_duplicates('propertyid')['propertyid'])
     del test
 
     drop_list = []
