@@ -157,6 +157,12 @@ df['fipscode'] = df['fipscode'].astype(float)
 
 df['free_rent'] = round(df['free_rent'],3)
 
+test = log_in.copy()
+test['in_log'] = 1
+test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
+df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
+
+
 display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
 print("Initial row count: {:,}".format(len(df)))
@@ -181,10 +187,6 @@ del temp
 df = df[(df['survey_legacy_data_source'].isin(['Foundation', 'ApartmentData.com'])) | ((df['survdate_d'] >= '06/01/2022') & (df['survey_legacy_data_source'] == ''))]
 print('Property count after removing test surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-test = log_in.copy()
-test['in_log'] = 1
-test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
-df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 df = df.join(valid_aptdata.drop_duplicates('id').set_index('id')[['valid']], on='property_reis_rc_id')
 df['count_apt'] = df[df['survey_legacy_data_source'] == 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
 df['count_apt'] = df.groupby('property_source_id')['count_apt'].bfill()
@@ -253,13 +255,6 @@ df['cumcount_id'] = df.groupby('property_source_id')['property_source_id'].trans
 df = df[(df['cumcount_id'] == 0) | (df['count_no_ts'] == 1) | (df['survey_legacy_data_source'] == 'Foundation')]
 print('Property count after removing incremental surveys that occurred on the same day: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-test = log_in.copy()
-test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
-test['in_log'] = 1
-if 'in_log' in df.columns:
-    df = df.drop(['in_log'],axis=1)
-df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
-
 for col in ['buildings_condominiumized_flag']:
     df[col] = np.where((df[col] == 'Y'), 1, 0)
 
@@ -300,11 +295,6 @@ del temp
 df = df[(df['housing_type'] != 'student')]
 print('Property count after removing student properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-test = log_in.copy()
-test['in_log'] = 1
-test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
-df = df.drop(['in_log'], axis=1)
-df = df.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 temp = df.copy()
 temp = temp[(temp['in_log'].isnull() == True) & ((temp['year'] < curryr - 1) | (temp['month'].isnull() == True))]
 temp['reason'] = 'Property is linked to REIS record that is not in the log. Possible Aff issue'
@@ -385,9 +375,7 @@ for col in temp.columns:
     temp[col] = np.where((temp[col] == -1)| (temp[col] == '-1'), np.nan, temp[col])
     temp.rename(columns={col: 'f_' + col}, inplace=True)
 temp['property_reis_rc_id'] = 'A' + temp['id'].astype(str)
-temp['in_log'] = 1
-df = df.drop(['in_log'],axis=1)
-df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['f_' + x for x in is_structural] + ['in_log']], on='property_reis_rc_id')
+df = df.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['f_' + x for x in is_structural]], on='property_reis_rc_id')
 del temp
 for col in is_structural:
     df[col] = np.where((df['valid'] == 0) & (df['in_log'] == 1), df['f_' + col], df[col])
@@ -400,7 +388,7 @@ drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property
 del temp
 df = df[(df['valid'] == 1) | (df['in_log'] == 1) | ((df['nc_eligible']) & (df['property_reis_rc_id'] == ''))]
 print("Property count after removing surveys that are not valid aptdata.com properties and have no umix in the legacy file: {:,}".format(len(df.drop_duplicates('property_source_id'))))
-df = df.drop(['f_' + x for x in is_structural] + ['in_log'], axis=1)
+df = df.drop(['f_' + x for x in is_structural], axis=1)
 
 
 test = log_in.copy()
@@ -498,14 +486,12 @@ df[(df['in_log'].isnull() == True) & (df['year'] >= curryr - 1) & (df['property_
 test = log_in.copy()
 temp = df.copy()
 temp['in_view'] = 1
-test['in_log'] = 1
 test['property_reis_rc_id'] = 'A' + test['id'].astype(str)
 test = test.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_view']], on='property_reis_rc_id')
 test = test.join(drop_log.drop_duplicates(['property_reis_rc_id']).set_index('property_reis_rc_id')[['reason']], on='property_reis_rc_id')
 if len(test[(test['in_view'].isnull() == True) & (test['realyr'].isnull() == False) & (test['reason'] == '')]) > 0:
     display(test[(test['in_view'].isnull() == True) & (test['realyr'].isnull() == False) & (test['reason'] == '')].drop_duplicates('property_reis_rc_id')[['property_reis_rc_id', 'reason']])
 
-temp = temp.join(test.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_log']], on='property_reis_rc_id')
 if len(temp[(temp['in_log'].isnull() == True) & (temp['year'] < curryr - 1)]) > 0:
     display(temp[(temp['in_log'].isnull() == True)].drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id', 'housing_type', 'type2', 'year']])
 del test
@@ -659,6 +645,10 @@ if update_umix:
     df['bathrooms'] = np.where((df['unit_detail_full_baths'].isnull() == True) & (df['has_three_quarter_bath']), 0.75, df['bathrooms'])
     df['bathrooms'] = np.where((df['unit_detail_full_baths'].isnull() == False) & (df['has_half_bath'] == False) & (df['has_one_quarter_bath'] == False) & (df['has_three_quarter_bath'] == False), df['unit_detail_full_baths'], df['bathrooms'])
 
+    test = umix_in.copy()
+    test['in_umix'] = 1
+    df = df.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
+
     display(pd.DataFrame(df.groupby('survey_legacy_data_source')['property_source_id'].count()).rename(index={'survey_legacy_data_source': 'survey_source'}, columns={'property_source_id': 'count_rows'}))
 
     print("Initial row count: {:,}".format(len(df)))
@@ -682,9 +672,6 @@ if update_umix:
     df = df[(df['survey_legacy_data_source'].isin(['Foundation', 'ApartmentData.com'])) | ((df['survdate_d'] >= '06/01/2022') & (df['survey_legacy_data_source'] == ''))]
     print('Property count after removing test surveys: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-    test = umix_in.copy()
-    test['in_umix'] = 1
-    df = df.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
     df = df.join(valid_aptdata.drop_duplicates('id').set_index('id')[['valid']], on='property_reis_rc_id')
     df['count_apt'] = df[df['survey_legacy_data_source'] == 'ApartmentData.com'].groupby('property_source_id')['property_source_id'].transform('count')
     df['count_apt'] = df.groupby('property_source_id')['count_apt'].bfill()
@@ -757,10 +744,6 @@ if update_umix:
     df = df[(df['cumcount_id'] == 0) | (df['count_no_ts'] == 1) | (df['survey_legacy_data_source'] == 'Foundation')]
     print('Property count after removing incremental surveys that occurred on the same day: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-    test = umix_in.copy()
-    test['in_umix'] = 1
-
-    df = df.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
 
     for col in ['buildings_condominiumized_flag']:
         df[col] = np.where((df[col] == 'Y'), 1, 0)
@@ -801,10 +784,6 @@ if update_umix:
     df = df[(df['housing_type'] != 'student')]
     print('Property count after removing student properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
-    test = umix_in.copy()
-    test['in_umix'] = 1
-    df = df.drop(['in_umix'], axis=1)
-    df = df.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
     temp = df.copy()
     temp = temp[(temp['in_umix'].isnull() == True) & ((temp['year'] < curryr - 1) | (temp['month'].isnull() == True))]
     temp['reason'] = 'Property is linked to REIS record that is not in legacy umix. Possible Aff issue'
@@ -880,23 +859,22 @@ if update_umix:
     temp = temp[['propertyid', 'spacetype', 'units', 'sqftavg']]
     temp = temp.rename(columns={'units': 'f_units', 'sqftavg': 'f_sqftavg'})
     temp['identity'] = temp['propertyid'] + '/' + temp['spacetype']
-    temp['in_umix'] = 1
-    df = df.drop(['in_umix'],axis=1)
+    temp['space_in_umix'] = 1
     df['identity'] = df['property_reis_rc_id'] + '/' + df['spacetype']
-    df = df.join(temp.drop_duplicates('identity').set_index('identity')[['f_units', 'f_sqftavg', 'in_umix']], on='identity')
+    df = df.join(temp.drop_duplicates('identity').set_index('identity')[['f_units', 'f_sqftavg', 'space_in_umix']], on='identity')
     del temp
     for col in ['units', 'sqftavg']:
-        df[col] = np.where((df['valid'] == 0) & (df['in_umix'] == 1), df['f_' + col], df[col])
+        df[col] = np.where((df['valid'] == 0) & (df['space_in_umix'] == 1), df['f_' + col], df[col])
 
     temp = df.copy()
-    temp['in_umix_sum'] = temp.groupby('property_source_id')['in_umix'].transform('sum')
+    temp['in_umix_sum'] = temp.groupby('property_source_id')['space_in_umix'].transform('sum')
     temp = temp[(temp['valid'] == 0) & (temp['in_umix_sum'] == 0) & ((temp['nc_eligible'] == False) | (temp['property_reis_rc_id'] != ''))]
     temp['reason'] = 'Property is not publishable aptdata.com record, and has no umixes that exist in legacy file'
     drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
     del temp
-    df = df[(df['valid'] == 1) | (df['in_umix'] == 1) | ((df['nc_eligible']) & (df['property_reis_rc_id'] == ''))]
+    df = df[(df['valid'] == 1) | (df['space_in_umix'] == 1) | ((df['nc_eligible']) & (df['property_reis_rc_id'] == ''))]
     print("Property count after removing surveys that are not valid aptdata.com properties and have no umix in the legacy file: {:,}".format(len(df.drop_duplicates('property_source_id'))))
-    df = df.drop(['f_units', 'f_sqftavg', 'in_umix'], axis=1)
+    df = df.drop(['f_units', 'f_sqftavg', 'space_in_umix'], axis=1)
 
     df['ident'] = df['property_reis_rc_id'] + '/' + df['spacetype']
     test = umix_in.copy()
@@ -981,13 +959,11 @@ if update_umix:
     test = umix_in.copy()
     temp = df.copy()
     temp['in_view'] = 1
-    test['in_umix'] = 1
     test = test.join(temp.drop_duplicates('property_reis_rc_id').set_index('property_reis_rc_id')[['in_view']], on='propertyid')
     test = test.join(drop_log.drop_duplicates(['property_reis_rc_id']).set_index('property_reis_rc_id')[['reason']], on='propertyid')
     if len(test[(test['in_view'].isnull() == True) & (test['reason'] == '')]) > 0:
         display(test[(test['in_view'].isnull() == True) & (test['reason'] == '')].drop_duplicates('propertyid')[['propertyid', 'reason']])
 
-    temp = temp.join(test.drop_duplicates('propertyid').set_index('propertyid')[['in_umix']], on='property_reis_rc_id')
     if len(temp[(temp['in_umix'].isnull() == True) & (temp['year'] < curryr - 1)]) > 0:
         display(temp[(temp['in_umix'].isnull() == True)].drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id', 'housing_type', 'type2', 'year']])
     del test
