@@ -3003,6 +3003,7 @@ class PrepareLogs:
                             dp.occupancy_type,
                             dp.parcels_fips,
                             dp.buildings_construction_year_built,
+                            dp.buildings_construction_expected_groundbreak_date,
                             dp.buildings_construction_expected_completion_date,
                             dp.buildings_construction_year_renovated,
                             sbu.building_office_use_size_sf,
@@ -3027,8 +3028,10 @@ class PrepareLogs:
         nc_add['property_reis_rc_id'] = np.where((nc_add['property_reis_rc_id'].str[0].isin(['I', 'O'])), nc_add['property_reis_rc_id'].str[:-1], nc_add['property_reis_rc_id'])
         
         
-        nc_add['const_year'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.year
-        nc_add['month'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date']).dt.month
+        nc_add['buildings_construction_expected_completion_date'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date'])
+        nc_add['buildings_construction_expected_groundbreak_date'] = pd.to_datetime(nc_add['buildings_construction_expected_groundbreak_date'])
+        nc_add['const_year'] = nc_add['buildings_construction_expected_completion_date'].dt.year
+        nc_add['month'] = nc_add['buildings_construction_expected_completion_date'].dt.month
         
         nc_add['property_reis_rc_id'] = np.where(nc_add['property_reis_rc_id'] == 'None', '', nc_add['property_reis_rc_id'])
         nc_add['property_reis_rc_id'] = nc_add['property_reis_rc_id'].str.replace('-', '')
@@ -3061,6 +3064,15 @@ class PrepareLogs:
             temp['value'] = temp['const_year'].astype(str) + ',' + temp['buildings_construction_year_built'].astype(str).str.split('.').str[0] + ',' + temp['buildings_construction_year_renovated'].astype(str)
             self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value']])
         nc_add = nc_add[(nc_add['const_year'] == nc_add['buildings_construction_year_built']) | (nc_add['buildings_construction_year_built'].isnull() ==True) | (nc_add['const_year'] == nc_add['buildings_construction_year_renovated'])]
+        
+        temp = nc_add.copy()
+        temp = temp[(temp['buildings_construction_expected_groundbreak_date'] > temp['buildings_construction_expected_completion_date']) & (temp['buildings_construction_expected_groundbreak_date'].isnull() == False) & (temp['buildings_construction_expected_completion_date'].isnull() == False)]
+        if len(temp) > 0:
+            temp['reason'] = 'groundbreak date is after completion date'
+            temp['value'] = temp['buildings_construction_expected_groundbreak_date'].astype(str) + ',' + temp['buildings_construction_expected_completion_date'].astype(str)
+            self.drop_nc_log = self.drop_nc_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value']])
+        nc_add = nc_add[(nc_add['buildings_construction_expected_groundbreak_date'] <= nc_add['buildings_construction_expected_completion_date']) | (nc_add['buildings_construction_expected_groundbreak_date'].isnull() ==True) | (nc_add['buildings_construction_expected_completion_date'].isnull() == True)]
+        
         
         nc_add['buildings_size_rentable_sf'] = np.where((nc_add['buildings_size_rentable_sf'] == ''), np.nan,nc_add['buildings_size_rentable_sf'])
         nc_add['buildings_size_rentable_sf'] = nc_add['buildings_size_rentable_sf'].astype(float)
