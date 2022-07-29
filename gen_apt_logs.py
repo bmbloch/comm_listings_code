@@ -1067,6 +1067,9 @@ if update_umix:
 
     temp = df.copy()
     temp = temp[temp['in_surv'].isnull() == True]
+    temp['has_rent'] = temp.groupby('propertyid')['averagerent'].transform('sum', min_count=1)
+    temp['has_vac'] = temp.groupby('propertyid')['vacant'].transform('sum', min_count=1)
+    temp = temp[(temp['has_rent'].isnull() == False) | (temp['has_vac'].isnull() == False)]
     temp = temp.join(leg_sel_codes.set_index('propertyid').rename(columns={'selectcode': 'l_selectcode'}), on='propertyid')
     temp = temp[(~temp['l_selectcode'].isin(['IAA', 'IAG', 'D', 'Q', 'S', 'EC', 'X', 'IAZ', 'IAU', 'I', 'T', 'IAR', 'E', 'IAT', 'IAK', 'IAI', 'B', 'P', 'TAX', 'NC']) | (temp['l_selectcode'].isnull() == True))]
     print("{:,} ids with live select codes that made it into umix that did not make it into the logs".format(len(temp.drop_duplicates('id_join'))))
