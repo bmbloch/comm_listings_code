@@ -1833,11 +1833,6 @@ class PrepareLogs:
     
     def calc_prop_level(self, test_data):
         
-        transaction_cols = ['lease_transaction_tenantimprovementallowancepsf_amount', 'lease_transaction_freerentmonths', 'lease_transaction_leasetermmonths', 'crd_norm']
-
-        for col in transaction_cols:
-            test_data[col] = np.where((~test_data['availability_status'].isin(['leased', 'withdrawn'])), np.nan, test_data[col])
-        
         test_data['avrent_norm'] = np.where((test_data['crd_norm'].isnull() == False), np.nan, test_data['avrent_norm'])
            
         if self.sector == "ret":
