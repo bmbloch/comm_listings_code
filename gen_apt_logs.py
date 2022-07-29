@@ -759,8 +759,6 @@ if update_umix:
 
     df['is_section_8_housing_flag'] = np.where((df['is_section_8_housing_flag'].isnull() == True), 0, df['is_section_8_housing_flag'])
 
-    df['mixed_income'] = np.where((df['housing_type'].isin(['affordable', 'age_restricted']) & (df['market_rate_units'] > 40)), True, False)   
-
     temp = df.copy()
     temp = temp[temp['is_section_8_housing_flag'] == 1]
     temp['reason'] = 'Property is Section 8'
@@ -778,12 +776,12 @@ if update_umix:
     print('Property count after removing condo properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
     temp = df.copy()
-    temp = temp[(temp['housing_type'].isin(['affordable', 'age_restricted'])) & (temp['mixed_income'] == False)]
+    temp = temp[(temp['housing_type'].isin(['affordable', 'age_restricted']))]
     temp['reason'] = 'Property is Affordable Housing'
     drop_log = drop_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'property_reis_rc_id', 'reason']], ignore_index=True)
     del temp
-    df = df[~(df['housing_type'].isin(['affordable', 'age_restricted'])) | (df['mixed_income'])]    
-    print('Property count after removing non mixed income affordable properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
+    df = df[~(df['housing_type'].isin(['affordable', 'age_restricted']))]    
+    print('Property count after removing affordable properties: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
     temp = df.copy()
     temp = temp[temp['housing_type'] == 'student']
