@@ -1043,6 +1043,10 @@ if update_umix:
 
     df.drop_duplicates('property_reis_rc_id')[['property_source_id', 'property_reis_rc_id']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/property_ids.csv', index=False)
 
+    leg_sel_codes = umix_in.copy()
+    leg_sel_codes = leg_sel_codes.drop_duplicates('propertyid')
+    leg_sel_codes = leg_sel_codes[['propertyid', 'selectcode']]
+
     del df_in
     del log_in
     del umix_in
@@ -1063,7 +1067,8 @@ if update_umix:
 
     temp = df.copy()
     temp = temp[temp['in_surv'].isnull() == True]
-    temp = temp[~temp['selectcode'].isin(['IAA', 'IAG', 'D', 'Q', 'S', 'EC', 'X', 'IAZ', 'IAU', 'I', 'T', 'IAR', 'E', 'IAT', 'IAK', 'IAI', 'B', 'P', 'TAX', 'NC'])]
+    temp = temp.join(leg_sel_codes.set_index('propertyid').rename(columns={'selectcode': 'l_selectcode'}), on='propertyid')
+    temp = temp[(~temp['l_selectcode'].isin(['IAA', 'IAG', 'D', 'Q', 'S', 'EC', 'X', 'IAZ', 'IAU', 'I', 'T', 'IAR', 'E', 'IAT', 'IAK', 'IAI', 'B', 'P', 'TAX', 'NC']) | (temp['l_selectcode'].isnull() == True))]
     print("{:,} ids with live select codes that made it into umix that did not make it into the logs".format(len(temp.drop_duplicates('id_join'))))
     if len(temp) > 0:
         temp = temp.join(drop_log_survs.drop_duplicates('property_source_id').set_index('property_source_id')[['reason']], on='property_source_id')
