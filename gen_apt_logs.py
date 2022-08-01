@@ -1045,6 +1045,15 @@ if update_umix:
     leg_sel_codes = leg_sel_codes.drop_duplicates('propertyid')
     leg_sel_codes = leg_sel_codes[['propertyid', 'selectcode']]
 
+    log_undup = log_in.drop_duplicates('id').copy()
+    log_undup = log_undup[['id']]
+    log_undup['id_join'] = 'A' + log_undup['id'].astype(str)
+    log_undup['in_leg_log'] = 1
+    umix_undup = umix_in.drop_duplicates('propertyid').copy()
+    umix_undup = umix_undup[['propertyid']]
+    umix_undup = umix_undup.rename(columns={'propertyid': 'id_join'})
+    umix_undup['in_leg_umix'] = 1
+
     del df_in
     del log_in
     del umix_in
@@ -1061,7 +1070,9 @@ if update_umix:
     df['in_umix'] = 1
     df['id_join'] = np.where((df['propertyid'].str[1:] == df['property_source_id']) | (df['propertyid'] == df['property_source_id']), df['property_source_id'], df['propertyid'])
     df = df.join(df_survs.drop_duplicates('id_join').set_index('id_join')[['in_surv']], on='id_join')
+    df = df.join(log_undup.drop_duplicates('id_join').set_index('id_join')[['in_leg_log']], on='id_join')
     df_survs = df_survs.join(df.drop_duplicates('id_join').set_index('id_join')[['in_umix']], on='id_join')
+    df_survs = df_survs.join(umix_undup.drop_duplicates('id_join').set_index('id_join')[['in_leg_umix']], on='id_join')
 
     temp = df.copy()
     temp = temp[temp['in_surv'].isnull() == True]
@@ -1073,7 +1084,7 @@ if update_umix:
     print("{:,} ids with live select codes that made it into umix that did not make it into the logs".format(len(temp.drop_duplicates('id_join'))))
     if len(temp) > 0:
         temp = temp.join(drop_log_survs.drop_duplicates('property_source_id').set_index('property_source_id')[['reason']], on='property_source_id')
-    temp.drop_duplicates('id_join')[['property_source_id', 'propertyid', 'reason']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/in_umix_not_log.csv', index=False)
+    temp.drop_duplicates('id_join')[['property_source_id', 'propertyid', 'reason', 'in_leg_log']].to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/in_umix_not_log.csv', index=False)
     del temp
 
     temp1 = df_survs.copy()
@@ -1081,5 +1092,5 @@ if update_umix:
     print("{:,} ids made it into logs that did not make it into umix".format(len(temp1.drop_duplicates('id_join'))))
     if len(temp1) > 0:
         temp1 = temp1.join(drop_log.drop_duplicates('property_source_id').set_index('property_source_id')[['reason']], on='property_source_id')
-    temp1.drop_duplicates('id_join')[['property_source_id', 'id_join', 'reason']].rename(columns={'id_join': 'propertyid'}).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/in_log_not_umix.csv', index=False)
+    temp1.drop_duplicates('id_join')[['property_source_id', 'id_join', 'reason', 'in_leg_umix']].rename(columns={'id_join': 'propertyid'}).to_csv('/home/central/square/data/zzz-bb-test2/python/catylist_snapshots/OutputFiles/umix/in_log_not_umix.csv', index=False)
     del temp1  
