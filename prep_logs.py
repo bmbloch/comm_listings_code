@@ -1885,16 +1885,14 @@ class PrepareLogs:
             temp = temp[(temp['lease_sublease'] == 0) | (temp['lease_sublease'].isnull() == True)]
             temp['space_size_available'] = np.where((temp['space_size_available'] <= 1) & (temp['space_size_available'] > 0), np.nan, temp['space_size_available'])
             temp[prefix + 'prop_dir_avail'] = temp.groupby('id_use')['space_size_available'].transform('sum', min_count=1)
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_dir_avail']], on='id_use')
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[[prefix + 'prop_dir_avail']], on='id_use')
             
             if self.sector == "off" or self.sector == "ind":
                 temp = test_data.copy()
                 temp = temp[(temp['lease_sublease'] == 1)]
                 temp['space_size_available'] = np.where((temp['space_size_available'] <= 1) & (temp['space_size_available'] > 0), np.nan, temp['space_size_available'])
                 temp['prop_sub_avail'] = temp.groupby('id_use')['space_size_available'].transform('sum', min_count=1)
-                temp = temp.drop_duplicates('id_use')
-                test_data = test_data.join(temp.set_index('id_use')[['prop_sub_avail']], on='id_use')
+                test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[['prop_sub_avail']], on='id_use')
                 
                 test_data[prefix + 'prop_sub_avail'] = np.where((test_data[prefix + 'prop_sub_avail'].isnull() == True) & (test_data[prefix + 'prop_dir_avail'].isnull() == False), 0, test_data[prefix + 'prop_sub_avail'])
                 test_data[prefix + 'prop_dir_avail'] = np.where((test_data[prefix + 'prop_dir_avail'].isnull() == True) & (test_data[prefix + 'prop_sub_avail'].isnull() == False), 0, test_data[prefix + 'prop_dir_avail'])
@@ -1945,8 +1943,7 @@ class PrepareLogs:
                 self.logic_log = self.logic_log.append(temp2.rename(columns={'id_use': 'realid'})[['realid', 'listed_space_id', 'flag', 'value', 'column', 'property_source_id', 'status']], ignore_index=True)
             temp1['avrent_norm'] = np.where(((temp1['avrent_norm'] < temp1[rent_log + '_l_range']) | (temp1['avrent_norm'] > temp1[rent_log + '_h_range'])) & ((abs(temp1['mr_diff']) > 0.02) | (temp1['mr_diff'].isnull() == True)), np.nan, temp1['avrent_norm'])
             temp1[prefix + 'prop_avrent'] = temp1.groupby('id_use')['avrent_norm'].transform('mean')
-            temp1 = temp1.drop_duplicates('id_use')
-            test_data = test_data.join(temp1.set_index('id_use')[[prefix + 'prop_avrent']], on='id_use')
+            test_data = test_data.join(temp1.drop_duplicates('id_use').set_index('id_use')[[prefix + 'prop_avrent']], on='id_use')
             test_data[prefix + 'prop_avrent'] = round(test_data[prefix + 'prop_avrent'], 2)
             
             temp1 = temp.copy()
@@ -1961,8 +1958,7 @@ class PrepareLogs:
             
             temp['commission_amount_percentage'] = np.where((temp['commission_amount_percentage'] < temp['comm1' + '_l_range']) | (temp['commission_amount_percentage'] > temp['comm1' + '_h_range']), np.nan, temp['commission_amount_percentage'])
             temp[prefix + 'prop_comm'] = temp.groupby('id_use')['commission_amount_percentage'].transform('mean')
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_comm']], on='id_use')
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[[prefix + 'prop_comm']], on='id_use')
                 
             if self.sector == "off" or self.sector == "ind" or (self.sector == "ret" and prefix == 'n_'):
                 free = 'free_re'
@@ -1981,8 +1977,7 @@ class PrepareLogs:
             
             temp['lease_transaction_freerentmonths'] = np.where((temp['lease_transaction_freerentmonths'] < temp[free + '_l_range']) | (temp['lease_transaction_freerentmonths'] > temp[free + '_h_range']), np.nan, temp['lease_transaction_freerentmonths'])
             temp[prefix + 'prop_free'] = temp.groupby('id_use')['lease_transaction_freerentmonths'].transform('mean')
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_free']], on='id_use')
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[[prefix + 'prop_free']], on='id_use')
             test_data[prefix + 'prop_free'] = round(test_data[prefix + 'prop_free'], 2)
                 
             if self.sector == "off" or self.sector == "ind" or (self.sector == "ret" and prefix == 'n_'):
@@ -2002,8 +1997,7 @@ class PrepareLogs:
             
             temp['lease_transaction_tenantimprovementallowancepsf_amount'] = np.where((temp['lease_transaction_tenantimprovementallowancepsf_amount'] < temp[ti + '_l_range']) | (temp['lease_transaction_tenantimprovementallowancepsf_amount'] > temp[ti + '_h_range']), np.nan, temp['lease_transaction_tenantimprovementallowancepsf_amount'])
             temp[prefix + 'prop_ti'] = temp.groupby('id_use')['lease_transaction_tenantimprovementallowancepsf_amount'].transform('mean')
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_ti']], on='id_use') 
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[[prefix + 'prop_ti']], on='id_use') 
             test_data[prefix + 'prop_ti'] = round(test_data[prefix + 'prop_ti'], 2)
             
             if self.sector == "off" or self.sector == "ind":
@@ -2025,8 +2019,7 @@ class PrepareLogs:
             
             temp['lease_transaction_leasetermmonths'] = np.where((temp['lease_transaction_leasetermmonths'] < temp[lse + '_l_range']) | (temp['lease_transaction_leasetermmonths'] > temp[lse + '_h_range']), np.nan, temp['lease_transaction_leasetermmonths'])
             temp[prefix + 'prop_term'] = temp.groupby('id_use')['lease_transaction_leasetermmonths'].transform('mean')
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_term']], on='id_use')
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[[prefix + 'prop_term']], on='id_use')
             
             if self.sector == "off" or self.sector == "ind":
                 crd = 'c_rent'
@@ -2047,8 +2040,7 @@ class PrepareLogs:
 
             temp['crd_norm'] = np.where((temp['crd_norm'] < temp[crd + '_l_range']) | (temp['crd_norm'] > temp[crd + '_h_range']), np.nan, temp['crd_norm'])
             temp[prefix + 'prop_crd'] = temp.groupby('id_use')['crd_norm'].transform('mean')
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[[prefix + 'prop_crd']], on='id_use')
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[[prefix + 'prop_crd']], on='id_use')
             
         if self.sector == "ret":
             thresh = 1000
@@ -2087,8 +2079,7 @@ class PrepareLogs:
 
         temp['opex_norm'] = np.where(((temp['opex_norm'] < temp['op_exp' + '_l_range']) | (temp['opex_norm'] > temp['op_exp' + '_h_range'])) & ((abs(temp['mr_diff']) > 0.02) | (temp['mr_diff'].isnull() == True)), np.nan, temp['opex_norm'])
         temp['prop_opex'] = temp.groupby('id_use')['opex_norm'].transform('mean')
-        temp = temp.drop_duplicates('id_use')
-        test_data = test_data.join(temp.set_index('id_use')[['prop_opex']], on='id_use')
+        test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[['prop_opex']], on='id_use')
         test_data['prop_opex'] = round(test_data['prop_opex'], 2)
         
         if prefix != 'a_':
@@ -2108,8 +2099,7 @@ class PrepareLogs:
         
         temp['retax_norm'] = np.where(((temp['retax_norm'] < temp['re_tax' + '_l_range']) | (temp['retax_norm'] > temp['re_tax' + '_h_range'])) & ((abs(temp['mr_diff']) > 0.02) | (temp['mr_diff'].isnull() == True)), np.nan, temp['retax_norm'])
         temp['prop_retax'] = temp.groupby('id_use')['retax_norm'].transform('mean')
-        temp = temp.drop_duplicates('id_use')
-        test_data = test_data.join(temp.set_index('id_use')[['prop_retax']], on='id_use')
+        test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[['prop_retax']], on='id_use')
         test_data['prop_retax'] = round(test_data['prop_retax'], 2)
 
 
@@ -2126,8 +2116,7 @@ class PrepareLogs:
             
             temp['cam_norm'] = np.where((temp['cam_norm'] < temp['cam' + '_l_range']) | (temp['cam_norm'] > temp['cam' + '_h_range']), np.nan, temp['cam_norm'])
             temp['prop_cam'] = temp.groupby('id_use')['cam_norm'].transform('mean')
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[['prop_cam']], on='id_use')
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[['prop_cam']], on='id_use')
             test_data['prop_cam'] = round(test_data['prop_cam'], 2)
         
         for basis in ['N', 'G']:
@@ -2141,8 +2130,7 @@ class PrepareLogs:
                 temp = temp[(temp['prop_avrent'].isnull() == False) | (temp['count_obs'] == 0)]
             temp = temp[temp['rent_basis'] == basis]
             temp['count_term_' + basis] = temp.groupby('id_use')['rent_basis'].transform('count')
-            temp = temp.drop_duplicates('id_use')
-            test_data = test_data.join(temp.set_index('id_use')[['count_term_' + basis]], on='id_use')
+            test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[['count_term_' + basis]], on='id_use')
             test_data['count_term_' + basis] = test_data['count_term_' + basis].fillna(0)
         test_data['max_term'] = np.where((test_data['count_term_N'] > test_data['count_term_G']), 'N', '')
         test_data['max_term'] = np.where((test_data['count_term_G'] > test_data['count_term_N']), 'G', test_data['max_term'])
