@@ -1037,7 +1037,7 @@ class PrepareLogs:
         test_data['foundation_ids_list_temp'] = np.where((test_data['foundation_ids_list_temp'] == ''), np.nan, test_data['foundation_ids_list_temp'])
         test_data['count_er'] = test_data.groupby('id_use')['foundation_ids_list_temp'].transform('count')
         temp = test_data.copy()
-        temp = temp[temp['size_method'] == 'Linked To Catylist ID Via BP']
+        temp = temp[(temp['size_method'] == 'Linked To Catylist ID Via BP') | (temp['size_method'] == 'Business Park SQFT')]
         temp['has_bp_link'] = 1
         test_data = test_data.join(temp.drop_duplicates('id_use').set_index('id_use')[['has_bp_link']], on='id_use')
         test_data['rc_no_er'] = np.where((test_data['count'] > 1) & (test_data['has_bp_link'].isnull() == True) & (test_data['count_er'] > 0) & (test_data['foundation_ids_list'] == ''), 1, 0)
