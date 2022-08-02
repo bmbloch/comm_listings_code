@@ -958,6 +958,29 @@ if update_umix:
     del test
     print('Property count after removing properties with metro sub combos that are not valid apt combos: {:,}'.format(len(df.drop_duplicates('property_source_id'))))
 
+    print("dont need this after AS fixes upstream")
+    df['count_dupes'] = df.groupby(['property_source_id', 'spacetype', 'survdate', 'survey_legacy_data_source'])['property_source_id'].transform('count')
+    temp = df.copy()
+    temp.sort_values(by=['property_source_id', 'survdate_d'], ascending=[True, False], inplace=True)
+    temp = temp.drop_duplicates('property_source_id')
+    temp['ident'] = temp['property_source_id'] + '/' + temp['survdate_d'].astype(str)
+    temp['mr_surv'] = 1
+    df['ident'] = df['property_source_id'] + '/' + temp['survdate_d'].astype(str)
+    df = df.join(temp.drop_duplicates('ident').set_index('ident')[['mr_surv']], on='ident')
+    del temp
+    df['units_dupe'] = df[(df['survey_legacy_data_source'] != 'Foundation') & (df['count_dupes'] > 1) & (df['mr_surv'] == 1)].groupby(['property_source_id', 'spacetype', 'survdate'])['units'].transform('sum', min_count=1)
+    df['sqftavg_dupe'] = df[(df['survey_legacy_data_source'] != 'Foundation') & (df['count_dupes'] > 1) & (df['mr_surv'] == 1)].groupby(['property_source_id', 'spacetype', 'survdate'])['sqftavg'].transform('mean')
+    df['units_dupe'] = df.groupby(['property_source_id', 'spacetype'])['units_dupe'].bfill()
+    df['units_dupe'] = df.groupby(['property_source_id', 'spacetype'])['units_dupe'].ffill()
+    df['sqftavg_dupe'] = df.groupby(['property_source_id', 'spacetype'])['sqftavg_dupe'].bfill()
+    df['sqftavg_dupe'] = df.groupby(['property_source_id', 'spacetype'])['sqftavg_dupe'].ffill()
+    df['units'] = np.where((df['units_dupe'].isnull() == False), df['units_dupe'], df['units'])
+    df['sqftavg'] = np.where((df['sqftavg_dupe'].isnull() == False), df['sqftavg_dupe'], df['sqftavg'])
+    df['normalized_rent_by_month_unit_average_amount_dupe'] = df[(df['survey_legacy_data_source'] != 'Foundation') & (df['count_dupes'] > 1)].groupby(['property_source_id', 'spacetype', 'survdate'])['normalized_rent_by_month_unit_average_amount'].transform('mean')
+    df['vacant_dupe'] = df[(df['survey_legacy_data_source'] != 'Foundation') & (df['count_dupes'] > 1)].groupby(['property_source_id', 'spacetype', 'survdate'])['vacant'].transform('sum', min_count=1)
+    df['normalized_rent_by_month_unit_average_amount'] = np.where((df['normalized_rent_by_month_unit_average_amount_dupe'].isnull() == False), df['normalized_rent_by_month_unit_average_amount_dupe'], df['normalized_rent_by_month_unit_average_amount'])
+    df['vacant'] = np.where((df['vacant_dupe'].isnull() == False), df['vacant_dupe'], df['vacant'])
+    
     for col in df.columns:
         if col in is_structural or col == 'property_source_id':
             df[col] = np.where((df[col] == ''), np.nan, df[col])
