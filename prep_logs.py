@@ -190,6 +190,7 @@ class PrepareLogs:
         self.drop_log = pd.DataFrame()
         self.logic_log = pd.DataFrame()
         self.drop_nc_log = pd.DataFrame()
+        self.drop_type_log = pd.DataFrame()
 
         return test_data_in, self.stop
 
@@ -2944,90 +2945,120 @@ class PrepareLogs:
             
         return inc, log_aligned
     
+    def check_comp_type(self, temp_in, d_prop):
+    
+        orig_cols = temp_in.columns
+        orig_len = len(self.drop_type_log)
+    
+        df = temp_in.copy()
+        df_leg = temp_in.copy()
+        df_leg = df_leg[df_leg['realid'].astype(str).str.isdigit() == True]
+        df = df[df['realid'].astype(str).str.isdigit() == False]
+        df['property_source_id'] = df['property_source_id'].astype(str)
+        d_prop['in_drop'] = 1
+        join_cols = ['in_drop', 'category', 'subcategory', 'building_office_use_size_sf', 'building_industrial_use_size_sf', 
+                    'building_retail_use_size_sf', 'buildings_size_gross_sf', 'retail_center_type', 'buildings_condominiumized_flag', 
+                    'occupancy_is_owner_occupied_flag', 'building_status']
+        df = df.join(d_prop.drop_duplicates('property_source_id').set_index('property_source_id')[join_cols], on='property_source_id')
+        
+        df['survdate_d'] = pd.to_datetime(df['survdate'])
+        df.sort_values(by=['property_source_id', 'survdate_d'], ascending=[True, True], inplace=True)
+        df = df.drop_duplicates('property_source_id')
+        df['year_in'] = df['survdate_d'].dt.year
+        df['month_in'] = df['survdate_d'].dt.month
+        df['first_period'] = df['year_in'].astype(str) + 'm' + df['month_in'].astype(str)
+        
+        temp = df.copy()
+        temp = temp[(temp['in_drop'].isnull() == True)]
+        if len(temp) > 0:
+            temp['reason'] = 'skittle no longer exists'
+            self.drop_type_log = self.drop_type_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'first_period']])
+        df = df[(df['in_drop'].isnull() == False)]
+        
+        temp = df.copy()
+        temp = temp[(temp['building_status'] != 'existing')]
+        if len(temp) > 0:
+            temp['reason'] = 'building status no longer existing'
+            temp['value'] = temp['building_status']
+            self.drop_type_log = self.drop_type_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value', 'first_period']])
+        df = df[(df['building_status'] == 'existing')]
+        
+        
+        if self.sector == "off":
+            size_by_use = 'building_office_use_size_sf'
+        elif self.sector == "ind":
+            size_by_use = "building_industrial_use_size_sf"
+        elif self.sector == "ret":
+            size_by_use = "building_retail_use_size_sf"
+            
+        df['mixed_use_check'] = np.where((df['subcategory'] == 'mixed_use') & (df[size_by_use] > 0), True, False)
+        if self.sector in ['off', 'ind']:
+            df['mixed_use_check'] = np.where((df['subcategory'] == 'mixed_use') & (df['category'].isin(self.sector_map[self.sector]['category'])) & (df['building_retail_use_size_sf'] > 100) & ((df['buildings_size_gross_sf'] - df['building_retail_use_size_sf']) / df['buildings_size_gross_sf'] > 0.25), True, df['mixed_use_check'])
+            
+        temp = df.copy()
+        temp = temp[((~temp['category'].isin(self.sector_map[self.sector]['category'])) | (~temp['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['']))) & (df['mixed_use_check'] == False)]
+        if len(temp) > 0:
+            temp['reason'] = 'property category/subcategory not a competitive type for this sector'
+            temp['value'] = np.where((~temp['category'].isin(self.sector_map[self.sector]['category'])), temp['category'], temp['subcategory'])
+            self.drop_type_log = self.drop_type_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value', 'first_period']])
+        df = df[((df['category'].isin(self.sector_map[self.sector]['category'])) & (df['subcategory'].isin(self.sector_map[self.sector]['subcategory'] + ['']))) | (df['mixed_use_check'])]
+        
+        if self.sector == "ret":
+            temp = df.copy()
+            temp = temp[temp['retail_center_type'] != '']
+            if len(temp) > 0:
+                temp['reason'] = 'retail center type is not publishable type'
+                temp['value'] = temp['retail_center_type']
+                self.drop_type_log = self.drop_type_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'value', 'first_period']])
+            df = df[df['retail_center_type'] == '']
+            temp = df.copy()
+            temp = temp[temp['subcategory'] == '']
+            if len(temp) > 0:
+                temp['reason'] = 'no subcategory value to guide subtype assignment'
+                self.drop_type_log = self.drop_type_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'first_period']])
+            df = df[df['subcategory'] != '']
+        
+        df['buildings_condominiumized_flag'] = np.where((df['buildings_condominiumized_flag'] == 'Y'), 1, 0)
+        temp = df.copy()
+        temp = temp[(temp['buildings_condominiumized_flag'] == 1) & (temp['subcategory'] != 'mixed_use')]
+        if len(temp) > 0:
+            temp['reason'] = 'building is condominiumized'
+            self.drop_type_log = self.drop_type_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'first_period']])
+        df = df[(df['buildings_condominiumized_flag'] == 0) | (df['subcategory'] == 'mixed_use')]
+            
+        df['occupancy_is_owner_occupied_flag'] = np.where((df['occupancy_is_owner_occupied_flag'] == 'Y'), 1, 0)
+        temp = df.copy()
+        temp = temp[temp['occupancy_is_owner_occupied_flag'] == 1]
+        if len(temp) > 0:
+            temp['reason'] = 'building is owner occupied'
+            self.drop_type_log = self.drop_type_log.append(temp.drop_duplicates('property_source_id')[['property_source_id', 'reason', 'first_period']])
+        df = df[(df['occupancy_is_owner_occupied_flag'] == 0)]
+        
+        df = df[orig_cols]
+        df_leg = df_leg.append(df, ignore_index=True)
+        
+        if len(self.drop_type_log) > orig_len:
+            update_snap = True
+        else:
+            update_snap = False
+        
+        self.drop_type_log = self.drop_type_log.drop_duplicates('property_source_id', keep='last')
+        
+        return df_leg, update_snap
+        
+    
     def append_nc_completions(self, combo, d_prop, log):
         
-        if len(d_prop) == 0 and self.home[0:2] == 's3' and self.live_load:
-            logging.info('Loading D_Property...')
-            logging.info('\n')
-            cursor.execute("""select dp.property_source_id, 
-                            dp.property_catylist_nc_id,
-                            dp.property_reis_rc_id, 
-                            dp.property_er_id, 
-                            dp.property_er_to_foundation_ids_list,
-                            dp.category, 
-                            dp.subcategory, 
-                            dp.property_geo_msa_code, 
-                            dp.property_geo_subid, 
-                            dp.property_name, 
-                            dp.location_street_address,
-                            dp.location_address_locality,
-                            dp.location_address_region,
-                            dp.location_address_postal_code,
-                            dp.location_county,
-                            dp.location_geopoint_latitude,
-                            dp.location_geopoint_longitude,
-                            dp.housing_type,
-                            dp.retail_center_type,
-                            dp.buildings_condominiumized_flag,
-                            dp.buildings_physical_characteristics_number_of_floors,
-                            dp.buildings_number_of_buildings,
-                            dp.buildings_physical_characteristics_clear_height_max_ft,
-                            dp.buildings_physical_characteristics_clear_height_min_ft,
-                            dp.buildings_physical_characteristics_doors_crossdockdoors_count,
-                            dp.buildings_physical_characteristics_doors_dockhighdoors_count,
-                            dp.buildings_physical_characteristics_doors_gradeleveldoors_count,
-                            dp.buildings_physical_characteristics_doors_raildoors_count,
-                            dp.buildings_size_gross_sf,
-                            dp.buildings_size_rentable_sf,
-                            dp.occupancy_number_of_units,
-                            dp.occupancy_is_owner_occupied_flag,
-                            dp.occupancy_type,
-                            dp.parcels_fips,
-                            dp.buildings_construction_year_built,
-                            dp.buildings_construction_expected_groundbreak_date,
-                            dp.buildings_construction_expected_completion_date,
-                            dp.buildings_construction_year_renovated,
-                            sbu.building_office_use_size_sf,
-                            sbu.building_industrial_use_size_sf,
-                            sbu.building_retail_use_size_sf
-                            from consumption.v_d_property dp
-                            left join consumption.v_property_building_use_size sbu on dp.property_source_id = sbu.property_source_id
-                            where (extract(YEAR FROM date(dp.buildings_construction_expected_completion_date)) >= {} or buildings_construction_year_built >= {}) and dp.building_status = 'EXISTING' AND property_source_system_name = 'Catylist'""".format(self.curryr - 1, self.curryr - 1))
-            d_prop: pd.DataFrame = cursor.fetch_dataframe()
-            d_prop.replace([None], np.nan, inplace=True)
-            conn.close()
-            d_prop = d_prop.drop_duplicates('property_source_id')
-            d_prop.to_csv('{}/InputFiles/d_prop.csv'.format(self.home), index=False)
-            
-        elif len(d_prop) == 0:
-            d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(self.home), na_values= "", keep_default_na = False)
-          
         nc_add = d_prop.copy()
         
-        nc_add['property_source_id'] = nc_add['property_source_id'].astype(str)
-        nc_add['property_reis_rc_id'] = nc_add['property_reis_rc_id'].astype(str)
-        nc_add['property_reis_rc_id'] = np.where((nc_add['property_reis_rc_id'].str[0].isin(['I', 'O'])), nc_add['property_reis_rc_id'].str[:-1], nc_add['property_reis_rc_id'])
+        nc_add = nc_add[nc_add['building_status'] == 'existing']
         
         nc_add['buildings_construction_expected_completion_date'] = pd.to_datetime(nc_add['buildings_construction_expected_completion_date'])
         nc_add['buildings_construction_expected_groundbreak_date'] = pd.to_datetime(nc_add['buildings_construction_expected_groundbreak_date'])
         nc_add['const_year'] = nc_add['buildings_construction_expected_completion_date'].dt.year
         nc_add['month'] = nc_add['buildings_construction_expected_completion_date'].dt.month
         
-        nc_add['property_reis_rc_id'] = np.where(nc_add['property_reis_rc_id'] == 'None', '', nc_add['property_reis_rc_id'])
-        nc_add['property_reis_rc_id'] = nc_add['property_reis_rc_id'].str.replace('-', '')
-
-        to_lower = ['occupancy_type', 'category', 'subcategory','housing_type', 'retail_center_type']
-        
-        for col in to_lower:
-            nc_add[col] = nc_add[col].str.lower()
-        
-        null_to_string = ['occupancy_type', 'category', 'subcategory', 'property_source_id', 'property_reis_rc_id',
-                          'property_catylist_nc_id', 'property_er_to_foundation_ids_list', 'property_geo_msa_code', 
-                          'property_name', 'location_street_address', 'location_address_locality', 'location_address_region',
-                          'location_address_region', 'location_county', 'housing_type', 'retail_center_type']
-        
-        for col in null_to_string:
-            nc_add[col] = np.where((nc_add[col].isnull() == True), '', nc_add[col])
+        nc_add = nc_add[((nc_add['const_year'] >= self.curryr - 1) | (nc_add['buildings_construction_year_built'] >= curryr - 1)) & (nc_add['building_status'] == 'existing')]
         
         temp = nc_add.copy()
         temp = temp[(temp['const_year'] > self.curryr) | ((temp['const_year'] == self.curryr) & (temp['month'] > self.currmon))]
@@ -3357,10 +3388,87 @@ class PrepareLogs:
         logging.info('Appending historical REIS logs...')
         logging.info('\n')
         
+        if len(d_prop) == 0 and self.home[0:2] == 's3' and self.live_load:
+            logging.info('Loading D_Property...')
+            logging.info('\n')
+            cursor.execute("""select dp.property_source_id, 
+                            dp.property_catylist_nc_id,
+                            dp.property_reis_rc_id, 
+                            dp.property_er_id, 
+                            dp.property_er_to_foundation_ids_list,
+                            dp.category, 
+                            dp.subcategory, 
+                            dp.property_geo_msa_code, 
+                            dp.property_geo_subid, 
+                            dp.property_name, 
+                            dp.location_street_address,
+                            dp.location_address_locality,
+                            dp.location_address_region,
+                            dp.location_address_postal_code,
+                            dp.location_county,
+                            dp.location_geopoint_latitude,
+                            dp.location_geopoint_longitude,
+                            dp.building_status,
+                            dp.housing_type,
+                            dp.retail_center_type,
+                            dp.buildings_condominiumized_flag,
+                            dp.buildings_physical_characteristics_number_of_floors,
+                            dp.buildings_number_of_buildings,
+                            dp.buildings_physical_characteristics_clear_height_max_ft,
+                            dp.buildings_physical_characteristics_clear_height_min_ft,
+                            dp.buildings_physical_characteristics_doors_crossdockdoors_count,
+                            dp.buildings_physical_characteristics_doors_dockhighdoors_count,
+                            dp.buildings_physical_characteristics_doors_gradeleveldoors_count,
+                            dp.buildings_physical_characteristics_doors_raildoors_count,
+                            dp.buildings_size_gross_sf,
+                            dp.buildings_size_rentable_sf,
+                            dp.occupancy_number_of_units,
+                            dp.occupancy_is_owner_occupied_flag,
+                            dp.occupancy_type,
+                            dp.parcels_fips,
+                            dp.buildings_construction_year_built,
+                            dp.buildings_construction_expected_groundbreak_date,
+                            dp.buildings_construction_expected_completion_date,
+                            dp.buildings_construction_year_renovated,
+                            sbu.building_office_use_size_sf,
+                            sbu.building_industrial_use_size_sf,
+                            sbu.building_retail_use_size_sf
+                            from consumption.v_d_property dp
+                            left join consumption.v_property_building_use_size sbu on dp.property_source_id = sbu.property_source_id
+                            where property_source_system_name = 'Catylist'""")
+            d_prop: pd.DataFrame = cursor.fetch_dataframe()
+            d_prop.replace([None], np.nan, inplace=True)
+            conn.close()
+            d_prop = d_prop.drop_duplicates('property_source_id')
+            d_prop.to_csv('{}/InputFiles/d_prop.csv'.format(self.home), index=False)
+            
+        elif len(d_prop) == 0:
+            d_prop = pd.read_csv('{}/InputFiles/d_prop.csv'.format(self.home), na_values= "", keep_default_na = False)
+          
+        d_prop['property_source_id'] = d_prop['property_source_id'].astype(str)
+        d_prop['property_reis_rc_id'] = d_prop['property_reis_rc_id'].astype(str)
+        d_prop['property_reis_rc_id'] = np.where((d_prop['property_reis_rc_id'].str[0].isin(['I', 'O'])), d_prop['property_reis_rc_id'].str[:-1], d_prop['property_reis_rc_id'])
+        d_prop['property_reis_rc_id'] = np.where(d_prop['property_reis_rc_id'] == 'None', '', d_prop['property_reis_rc_id'])
+        d_prop['property_reis_rc_id'] = d_prop['property_reis_rc_id'].str.replace('-', '')
+        
+        to_lower = ['occupancy_type', 'category', 'subcategory', 'housing_type', 'retail_center_type', 'building_status']
+        
+        for col in to_lower:
+            d_prop[col] = d_prop[col].str.lower()
+        
+        null_to_string = ['occupancy_type', 'category', 'subcategory', 'property_source_id', 'property_reis_rc_id',
+                          'property_catylist_nc_id', 'property_er_to_foundation_ids_list', 'property_geo_msa_code', 
+                          'property_name', 'location_street_address', 'location_address_locality', 'location_address_region',
+                          'location_address_region', 'location_county', 'housing_type', 'retail_center_type', 
+                          'building_status']
+        
+        for col in null_to_string:
+            d_prop[col] = np.where((d_prop[col].isnull() == True), '', d_prop[col])
+        
+        
         log['leg'] = 'yes'   
         test_data = test_data[self.orig_cols + ['leg', 'property_source_id']]
-        
-        
+    
         temp_aggreg = pd.DataFrame()
         log_aligned = log.copy()
         
@@ -3389,6 +3497,13 @@ class PrepareLogs:
             temp = pd.read_csv(file_read, encoding = 'utf-8',  na_values= "", keep_default_na = False,
                                    dtype=self.dtypes)
             temp['leg'] = 'yes'
+            temp, update_snap = self.check_comp_type(temp, d_prop)
+            if update_snap:
+                year_update = file_read.split('/')[-1].split('_')[0].split('m')[0]
+                month_update = file_read.split('/')[-1].split('_')[0].split('m')[-1]
+                logging.info('Updating historical snapshot for the {}m{} period due to removal of surveys for properties now non-competitive'.format(year_update, month_update))
+                logging.info('\n')
+                temp.to_csv(file_read, index=False)
             temp_aggreg = temp_aggreg.append(temp, ignore_index=False)
 
         for key, value in self.type_dict.items():
@@ -3402,14 +3517,16 @@ class PrepareLogs:
                 temp_aggreg[key] = temp_aggreg.groupby('realid')[key].ffill()
 
         if len(dir_list) > 0:
+            logging.info("\n")
+            logging.info('{:,} properties removed from historical incrementals due to type change'.format(len(self.drop_type_log)))
+            logging.info('\n')
             temp_aggreg, log_aligned = self.align_structurals(temp_aggreg, log_aligned)
             log_aligned = log_aligned.append(temp_aggreg, ignore_index=True)
 
         if len(dir_list) == 0:
             logging.info("No historical incremental files to load")
-        logging.info("\n")
-
-
+            logging.info("\n")
+        
         test_data, log_aligned = self.align_structurals(test_data, log_aligned)
 
         if len(test_data) > 0:
@@ -3896,6 +4013,7 @@ class PrepareLogs:
         self.drop_log = self.drop_log[d_col_order]
         self.drop_log.to_csv("{}/OutputFiles/{}/logic_logs/drop_log_{}m{}.csv".format(self.home, self.sector, self.curryr, self.currmon), index=False)
         self.drop_nc_log.to_csv("{}/OutputFiles/{}/logic_logs/drop_nc_log_{}m{}.csv".format(self.home, self.sector, self.curryr, self.currmon), index=False)
+        self.drop_type_log.to_csv("{}/OutputFiles/{}/logic_logs/drop_type_log_{}m{}.csv".format(self.home, self.sector, self.curryr, self.currmon), index=False)
         
         self.gen_coverage_graphs(test_data_in, r_surv_graph, log, id_check, test_data, pre_drop, mult_prop_link)
     
